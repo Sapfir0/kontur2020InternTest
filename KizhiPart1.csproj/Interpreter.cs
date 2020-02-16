@@ -11,10 +11,21 @@ namespace KizhiPart1 {
         }
     }
     
+
+    
     public class Interpreter {
         private TextWriter _writer;
-        Dictionary<string, int> dict = new Dictionary<string, int>();
+        Dictionary<string, int> dict = new Dictionary<string, int>(); // словарь для переменных
+        List<string> codeBlocks = new List<string>();
+        bool thisIsCodeBlock = false;
 
+        private bool isRunning = false;
+
+
+        public void PrintError() {
+            WriteToStream("Переменная отсутствует в памяти");
+
+        }
         private void WriteToStream(string str) {
             _writer.WriteLine(str);
             Console.WriteLine(str);
@@ -29,7 +40,7 @@ namespace KizhiPart1 {
                 WriteToStream(dict[variableName].ToString());
             }
             catch (KeyNotFoundException e) {
-                WriteToStream("Переменная отсутствует в памяти");
+                PrintError();
             }
         }
 
@@ -46,7 +57,7 @@ namespace KizhiPart1 {
         public void Rem(string variableName) {
 
             if (!dict.Remove(variableName)) {
-                WriteToStream("Переменная отсутствует в памяти");
+                PrintError();
             }
         }
         
@@ -55,12 +66,14 @@ namespace KizhiPart1 {
                 dict[variableName] -= subValue;
             }
             catch (KeyNotFoundException e) {
-                WriteToStream("Переменная отсутствует в памяти");
+                PrintError();
+                
             }
         }
-        
-        public void ExecuteLine(string command) {
-            var parsedCommand = command.Split(' ');
+
+        public void RecursiveSet(string blob) {
+            var parsedCommand = blob.Split(' ');
+
             switch (parsedCommand[0]) {
                 case "set": {
                     Set(parsedCommand[1], Int32.Parse(parsedCommand[2]));
@@ -69,7 +82,6 @@ namespace KizhiPart1 {
                 }
                 case "sub": {
                     Sub(parsedCommand[1], Int32.Parse(parsedCommand[2]));
-
                     break;
                 }
                 case "print": {
@@ -81,7 +93,46 @@ namespace KizhiPart1 {
                     Rem(parsedCommand[1]);
                     break;
                 }
+                case "def": {
+                    break;   
+                }
+                case "call": {
+                    break;
+                }
+
+                default: { 
+                    break;
+                }
             }
+        }
+        
+        public void ExecuteLine(string command) {
+            var parsedCommand = command.Split(' ');
+            
+            if (!isRunning) {
+                if (parsedCommand[0] == "run") {
+                    isRunning = true;
+                }
+                if (thisIsCodeBlock) {
+                    codeBlocks.Add(command);
+                } else {
+                    switch (parsedCommand[0]) {
+                        case "set": {
+                            thisIsCodeBlock = true;
+                            break;
+                        }
+                        case "end": {
+                            thisIsCodeBlock = false;
+                            break;
+                        }
+                    }
+                }
+                
+            }
+            else {
+                RecursiveSet(codeBlocks[0]);
+            }
+        
         }
     }
 
