@@ -14,6 +14,8 @@ namespace Refactoring
         public RemoteController()
         {
             _optionsShower = new OptionsShower(this);
+            currentSettings.Add("brightness", 30);
+            currentSettings.Add("contrast", 10);
         }
 
         public string Call(String command)
@@ -57,48 +59,16 @@ namespace Refactoring
             switch (command)
             {
                 case "brightness up":
-                    if (!currentSettings.ContainsKey("brightness"))
-                    {
-                        currentSettings.Add("brightness", 20 + 10);
-                    }
-                    else
-                    {
-                        currentSettings["brightness"] += 10;
-                    }
-
+                    currentSettings["brightness"] += 10;
                     break;
                 case "brightness down":
-                    if (!currentSettings.ContainsKey("brightness"))
-                    {
-                        currentSettings.Add("brightness", 20 - 10);
-                    }
-                    else
-                    {
-                        currentSettings["brightness"] -= 10;
-                    }
-
+                    currentSettings["brightness"] -= 10;
                     break;
                 case "contrast up":
-                    if (!currentSettings.ContainsKey("contrast"))
-                    {
-                        currentSettings.Add("contrast", 20 + 10);
-                    }
-                    else
-                    {
-                        currentSettings["contrast"] += 10;
-                    }
-
+                    currentSettings["contrast"] += 10;
                     break;
                 case "contrast down":
-                    if (!currentSettings.ContainsKey("contrast"))
-                    {
-                        currentSettings.Add("contrast", 20 + 10);
-                    }
-                    else
-                    {
-                        currentSettings["contrast"] -= 10;
-                    }
-
+                    currentSettings["contrast"] -= 10;
                     break;
                 default:
                     break;

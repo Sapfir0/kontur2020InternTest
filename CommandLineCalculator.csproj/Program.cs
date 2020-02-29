@@ -6,10 +6,10 @@ namespace CommandLineCalculator
     {
         public static void Main()
         {
-            var console = new TextUserConsole(Console.In, Console.Out);
+            /*var console = new TextUserConsole(Console.In, Console.Out);
             var storage = new FileStorage("db");
             var interpreter = new StatelessInterpreter();
-            interpreter.Run(console, storage);
+            interpreter.Run(console, storage);*/
         }
     }
 }

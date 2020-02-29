@@ -44,7 +44,8 @@ namespace KizhiPart1 {
             }
         }
 
-        public void Set(string variableName, int variableValue) {
+        public void Set(string variableName, int variableValue) 
+        {
             try {
                 dict.Add(variableName, variableValue);
             }
@@ -54,14 +55,16 @@ namespace KizhiPart1 {
         }
         
 
-        public void Rem(string variableName) {
+        public void Rem(string variableName) 
+        {
 
             if (!dict.Remove(variableName)) {
                 PrintError();
             }
         }
         
-        public void Sub(string variableName, int subValue) {
+        public void Sub(string variableName, int subValue) 
+        {
             try {
                 dict[variableName] -= subValue;
             }
@@ -71,6 +74,11 @@ namespace KizhiPart1 {
             }
         }
 
+        public void Def()
+        {
+            
+        }
+
         public void RecursiveSet(string blob) {
             var parsedCommand = blob.Split(' ');
 
@@ -78,7 +86,6 @@ namespace KizhiPart1 {
                 case "set": {
                     Set(parsedCommand[1], Int32.Parse(parsedCommand[2]));
                     break;
-
                 }
                 case "sub": {
                     Sub(parsedCommand[1], Int32.Parse(parsedCommand[2]));
@@ -86,7 +93,6 @@ namespace KizhiPart1 {
                 }
                 case "print": {
                     Print(parsedCommand[1]);
-
                     break;
                 }
                 case "rem": {
@@ -105,6 +111,8 @@ namespace KizhiPart1 {
                 }
             }
         }
+        
+        
         
         public void ExecuteLine(string command) {
             var parsedCommand = command.Split(' ');

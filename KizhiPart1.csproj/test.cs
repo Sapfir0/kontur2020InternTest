@@ -40,7 +40,12 @@ namespace KizhiPart1 {
         [Test]
         public void ExampleFunction() {
             pult.ExecuteLine("set code");
-            pult.ExecuteLine("def test set a 5 sub a 3 print b set b 7 call test");
+            pult.ExecuteLine("def test " +
+                             "set a 5 " +
+                             "sub a 3 " +
+                             "print b " +
+                             "set b 7 " +
+                             "call test");
             pult.ExecuteLine("end code");
             pult.ExecuteLine("run");
             
