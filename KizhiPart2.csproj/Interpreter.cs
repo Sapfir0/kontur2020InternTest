@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace KizhiPart2 {
     public class MainClass {
         static int Main() {
-            new test();
             return 0;
             
         }
@@ -15,7 +15,9 @@ namespace KizhiPart2 {
     public class Interpreter {
         private TextWriter _writer;
         Dictionary<string, int> storage = new Dictionary<string, int>(); // словарь для переменных
-        List<string> codeBlocks = new List<string>();
+        Dictionary<string, List<string>> functionList = new Dictionary<string, List<string>>(); // тут будет название функции/команды внутри нее
+        List<string> interpretComands = new List<string>(); // просто команды которые будем запускать
+        
         bool thisIsCodeBlock = false;
 
         private bool isRunning = false;
@@ -81,35 +83,67 @@ namespace KizhiPart2 {
             }
         }
 
-        public void Def()
+        public void Def(string nameOfFunction, List<string> commands)
         {
-            
+            functionList.Add(nameOfFunction, commands);
+        }
+
+        public void Call(string nameOfFunction)
+        {
+            if(functionList.TryGetValue(nameOfFunction, out var ourVariable))
+            {
+                
+            }
+            else
+            {
+                WriteNotFoundMessage(); //такой функции мы не знаем 
+            }
         }
 
         public void RecursiveSet(string blob) {
             var parsedCommand = blob.Split(' ');
 
-            switch (parsedCommand[0]) {
-                case "set": {
+            switch (parsedCommand[0]) 
+            {
+                case "set": 
+                {
                     Set(parsedCommand[1], Int32.Parse(parsedCommand[2]));
                     break;
                 }
-                case "sub": {
+                case "sub": 
+                {
                     Sub(parsedCommand[1], Int32.Parse(parsedCommand[2]));
                     break;
                 }
-                case "print": {
+                case "print": 
+                {
                     Print(parsedCommand[1]);
                     break;
                 }
-                case "rem": {
+                case "rem": 
+                {
                     Rem(parsedCommand[1]);
                     break;
                 }
-                case "def": {
+                case "def":
+                {
+                    
+                    string[] sep = new string[] {"    "};
+                    var parsedFunction = blob.Split(sep, 9999, StringSplitOptions.None);
+                    // последнее значение будет неверно, он оставит всю остальную строчку
+
+                    var test = parsedFunction[parsedFunction.Length - 1].Split(' ');
+                    parsedFunction[parsedFunction.Length-1] = parsedFunction[parsedFunction.Length-1].Split(' ')[1] + " " + parsedFunction[parsedFunction.Length-1].Split(' ')[2];
+                    var listok = parsedFunction.ToList();
+                    listok.RemoveAt(0);
+                    //throw new Exception(blob);
+
+                    // берем по разделителю 4 пробела пока не встретится код без пробелов, тогда перестаем брать
+                    Def(parsedCommand[1], listok);
                     break;   
                 }
                 case "call": {
+                    Call(parsedCommand[1]);
                     break;
                 }
 
@@ -124,28 +158,29 @@ namespace KizhiPart2 {
         public void ExecuteLine(string command) {
             var parsedCommand = command.Split(' ');
             
-            if (!isRunning) {
-                if (parsedCommand[0] == "run") {
-                    isRunning = true;
+            if (thisIsCodeBlock) {
+                if (parsedCommand[0] == "end")
+                {
+                    thisIsCodeBlock = false;
                 }
-                if (thisIsCodeBlock) {
-                    codeBlocks.Add(command);
-                } else {
-                    switch (parsedCommand[0]) {
-                        case "set": {
-                            thisIsCodeBlock = true;
-                            break;
-                        }
-                        case "end": {
-                            thisIsCodeBlock = false;
-                            break;
-                        }
-                    }
+                else
+                {              
                 }
-                
+            } else {
+                if (parsedCommand[0] =="set")
+                {
+                    thisIsCodeBlock = true;
+                }
             }
-            else {
-                RecursiveSet(codeBlocks[0]);
+
+            
+            if (parsedCommand[0] == "run") {
+                //начинаем интерпреатцию
+                for (int i = 0; i < interpretComands.Count; i++)
+                {
+                    RecursiveSet(interpretComands[i]);
+
+                }
             }
         
         }
