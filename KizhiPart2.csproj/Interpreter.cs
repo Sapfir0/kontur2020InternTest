@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using NUnit.Framework;
 
 namespace KizhiPart2 {
     public class MainClass {
@@ -15,7 +16,7 @@ namespace KizhiPart2 {
     public class Interpreter {
         private TextWriter _writer;
         Dictionary<string, int> storage = new Dictionary<string, int>(); // словарь для переменных
-        Dictionary<string, List<string>> functionList = new Dictionary<string, List<string>>(); // тут будет название функции/команды внутри нее
+        List<Dictionary<string, List<string>>> functionList = new List<Dictionary<string, List<string>>>(); //может быть сетом // тут будет название функции/команды внутри нее
         List<string> interpretComands = new List<string>(); // просто команды которые будем запускать
         
         bool thisIsCodeBlock = false;
@@ -83,12 +84,12 @@ namespace KizhiPart2 {
             }
         }
 
-        public void Def(string nameOfFunction, List<string> commands)
+        /*public void Def(string nameOfFunction, List<string> commands)
         {
             functionList.Add(nameOfFunction, commands);
-        }
+        }*/
 
-        public void Call(string nameOfFunction)
+        /*public void Call(string nameOfFunction)
         {
             if(functionList.TryGetValue(nameOfFunction, out var ourVariable))
             {
@@ -98,9 +99,67 @@ namespace KizhiPart2 {
             {
                 WriteNotFoundMessage(); //такой функции мы не знаем 
             }
+        }*/
+
+        public void Parse(string code)
+        {
+            var commands = code.Split('\n').ToList();
+            
+            bool functionStart = false;
+            Dictionary<string, List<string>> currentFunction = new Dictionary<string, List<string>>();
+            string nameOfFunction = "None";
+            
+            foreach (var command in commands)
+            {
+                if (functionStart)
+                {
+                    if (command.Contains("  "))
+                    {
+                        currentFunction[nameOfFunction].Add(command);
+                    }
+                    else
+                    {
+                        functionStart = false;
+                        functionList.Add(currentFunction);
+                        currentFunction.Clear();
+                    }
+                }
+                
+                if (command.Contains("def"))
+                {
+                    nameOfFunction = command.Split(' ')[1];
+                    functionStart = true;
+                    currentFunction.Add(nameOfFunction, null);
+                }
+                
+
+                if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним  
+                {
+                    var nameOfCalledFunction = command.Split(' ')[1];
+                    var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
+                    foreach (var functionCommands in calledFunc)
+                    {
+                        interpretComands.Add(functionCommands);
+                    }
+                }
+                else if (!command.Contains("def"))
+                {
+                    interpretComands.Add(command);
+                }
+                
+            }
         }
 
-        public void RecursiveSet(string blob) {
+        public List<string> GetFunctionCommandsByName(string name)
+        {
+            foreach (var function in functionList.Where(function => function.First().Key == name))
+            {
+                return function[name];
+            }
+            return new List<string>(null);
+        }
+
+        public void ParseString(string blob) {
             var parsedCommand = blob.Split(' ');
 
             switch (parsedCommand[0]) 
@@ -128,22 +187,11 @@ namespace KizhiPart2 {
                 case "def":
                 {
                     
-                    string[] sep = new string[] {"    "};
-                    var parsedFunction = blob.Split(sep, 9999, StringSplitOptions.None);
-                    // последнее значение будет неверно, он оставит всю остальную строчку
-
-                    var test = parsedFunction[parsedFunction.Length - 1].Split(' ');
-                    parsedFunction[parsedFunction.Length-1] = parsedFunction[parsedFunction.Length-1].Split(' ')[1] + " " + parsedFunction[parsedFunction.Length-1].Split(' ')[2];
-                    var listok = parsedFunction.ToList();
-                    listok.RemoveAt(0);
-                    //throw new Exception(blob);
-
-                    // берем по разделителю 4 пробела пока не встретится код без пробелов, тогда перестаем брать
-                    Def(parsedCommand[1], listok);
+                    ///Def(parsedCommand[1], listok);
                     break;   
                 }
                 case "call": {
-                    Call(parsedCommand[1]);
+                    //Call(parsedCommand[1]);
                     break;
                 }
 
@@ -164,7 +212,8 @@ namespace KizhiPart2 {
                     thisIsCodeBlock = false;
                 }
                 else
-                {              
+                {
+                    Parse(command);
                 }
             } else {
                 if (parsedCommand[0] =="set")
@@ -178,7 +227,7 @@ namespace KizhiPart2 {
                 //начинаем интерпреатцию
                 for (int i = 0; i < interpretComands.Count; i++)
                 {
-                    RecursiveSet(interpretComands[i]);
+                    ParseString(interpretComands[i]);
 
                 }
             }
