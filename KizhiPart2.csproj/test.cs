@@ -74,6 +74,26 @@ namespace KizhiPart2 {
 
         }
         
+        [Test]
+        public void Recursive()
+        {
+            pult.ExecuteLine("def test \n" +
+                             "    print a \n" +
+                             "    call test \n" +
+                             "set a 321" +
+                             "call test \n");
+
+        }
+        
+        [Test]
+        public void NotEnteredRecursion()
+        {
+            pult.ExecuteLine("def test \n" +
+                             "    print a \n" +
+                             "    call test \n" +
+                             "set a 321 \n");
+
+        }
 
     }
 }

@@ -84,47 +84,39 @@ namespace KizhiPart2 {
             }
         }
 
-        /*public void Def(string nameOfFunction, List<string> commands)
-        {
-            functionList.Add(nameOfFunction, commands);
-        }*/
 
-        /*public void Call(string nameOfFunction)
-        {
-            if(functionList.TryGetValue(nameOfFunction, out var ourVariable))
-            {
-                
-            }
-            else
-            {
-                WriteNotFoundMessage(); //такой функции мы не знаем 
-            }
-        }*/
-
-        public void Parse(string code)
+        public void ParseStringToDictionary(string code)
         {
             var commands = code.Split('\n').ToList();
             
-            bool functionStart = false;
+            bool isFunction = false;
             List<string> currentFunction = new List<string>();
             string nameOfFunction = "none";
             var metaFunc = new Dictionary<string, List<string>>();
 
-            
+            bool isRecursion = false;
             foreach (var command in commands)
             {
-                if (functionStart)
+                if (isFunction)
                 {
-                    if (command.Contains("  "))
+                    if (command.Contains("  ") )
                     {
-                        currentFunction.Add(command.TrimStart());
+                        if (command.Contains("call")) //пытаемся избежать рекурсии
+                        {
+                            isRecursion = true;
+                        }
+                        else
+                        {
+                            currentFunction.Add(command.TrimStart());
+
+                        }
                     }
                     else
                     {
-                        functionStart = false;
+                        isFunction = false;
                         metaFunc.Add(nameOfFunction, currentFunction);
                         functionList.Add(metaFunc);
-                        //currentFunction.Clear();
+                        //currentFunction.Clear(); // странно, похоже, что тесты не предполагают наличие нескольких функций
                         //metaFunc.Clear();
                     }
                 }
@@ -132,22 +124,47 @@ namespace KizhiPart2 {
                 if (command.Contains("def"))
                 {
                     nameOfFunction = command.Split(' ')[1];
-                    functionStart = true;
+                    isFunction = true;
                 }
-                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
+                
+                else if (command.Contains("call")) //еcли у нас вызов функции, то мы инлайним 
                 {
                     var nameOfCalledFunction = command.Split(' ')[1];
-                    var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
+                    List<string> calledFunc;
+                    
+                    if (command.Contains("   ")) // если вызов был рекурсивным
+                    {
+                        isRecursion = true;
+                        isFunction = false;
+                    }
+                    
+                    calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
+
                     foreach (var functionCommands in calledFunc)
                     {
                         interpretComands.Add(functionCommands);
                     }
                 }
-                else if (!command.Contains("def") && !functionStart)
+                else if (!isFunction) // если это не функция
                 {
                     interpretComands.Add(command);
                 }
                 
+            }
+        }
+
+        public void RecursionProcessing()
+        {
+            metaFunc.Add(nameOfFunction, currentFunction);
+            functionList.Add(metaFunc);
+            for (int i = 0; i < 99999; i++)
+            {
+                nameOfCalledFunction = command.Trim().Split(' ')[1];
+                calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
+                foreach (var functionCommands in calledFunc)
+                {
+                    interpretComands.Add(functionCommands);
+                }
             }
         }
 
@@ -160,7 +177,8 @@ namespace KizhiPart2 {
             return new List<string>(null);
         }
 
-        public void ParseString(string blob) {
+        public void ParseString(string blob) 
+        {
             var parsedCommand = blob.Split(' ');
 
             switch (parsedCommand[0]) 
@@ -185,17 +203,6 @@ namespace KizhiPart2 {
                     Rem(parsedCommand[1]);
                     break;
                 }
-                case "def":
-                {
-                    
-                    ///Def(parsedCommand[1], listok);
-                    break;   
-                }
-                case "call": {
-                    //Call(parsedCommand[1]);
-                    break;
-                }
-
                 default: { 
                     break;
                 }
@@ -203,20 +210,23 @@ namespace KizhiPart2 {
         }
         
         
-        
-        public void ExecuteLine(string command) {
+        public void ExecuteLine(string command) 
+        {
             var parsedCommand = command.Split(' ');
             
-            if (thisIsCodeBlock) {
+            if (thisIsCodeBlock) 
+            {
                 if (parsedCommand[0] == "end")
                 {
                     thisIsCodeBlock = false;
                 }
                 else
                 {
-                    Parse(command);
+                    ParseStringToDictionary(command);
                 }
-            } else {
+            } 
+            else 
+            {
                 if (parsedCommand[0] =="set")
                 {
                     thisIsCodeBlock = true;
@@ -224,7 +234,8 @@ namespace KizhiPart2 {
             }
 
             
-            if (parsedCommand[0] == "run") {
+            if (parsedCommand[0] == "run") 
+            {
                 //начинаем интерпреатцию
                 for (int i = 0; i < interpretComands.Count; i++)
                 {
