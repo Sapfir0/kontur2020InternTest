@@ -89,34 +89,26 @@ namespace KizhiPart2 {
         {
             var commands = code.Split('\n').ToList();
             
-            bool isFunction = false;
+            bool functionStart = false;
             List<string> currentFunction = new List<string>();
             string nameOfFunction = "none";
             var metaFunc = new Dictionary<string, List<string>>();
 
-            bool isRecursion = false;
+            
             foreach (var command in commands)
             {
-                if (isFunction)
+                if (functionStart)
                 {
-                    if (command.Contains("  ") )
+                    if (command.Contains("  "))
                     {
-                        if (command.Contains("call")) //пытаемся избежать рекурсии
-                        {
-                            isRecursion = true;
-                        }
-                        else
-                        {
-                            currentFunction.Add(command.TrimStart());
-
-                        }
+                        currentFunction.Add(command.TrimStart());
                     }
                     else
                     {
-                        isFunction = false;
+                        functionStart = false;
                         metaFunc.Add(nameOfFunction, currentFunction);
                         functionList.Add(metaFunc);
-                        //currentFunction.Clear(); // странно, похоже, что тесты не предполагают наличие нескольких функций
+                        //currentFunction.Clear();
                         //metaFunc.Clear();
                     }
                 }
@@ -124,28 +116,21 @@ namespace KizhiPart2 {
                 if (command.Contains("def"))
                 {
                     nameOfFunction = command.Split(' ')[1];
-                    isFunction = true;
+                    functionStart = true;
                 }
-                
-                else if (command.Contains("call")) //еcли у нас вызов функции, то мы инлайним 
+                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
                 {
-                    var nameOfCalledFunction = command.Split(' ')[1];
-                    List<string> calledFunc;
-                    
-                    if (command.Contains("   ")) // если вызов был рекурсивным
-                    {
-                        isRecursion = true;
-                        isFunction = false;
-                    }
-                    
-                    calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
-
-                    foreach (var functionCommands in calledFunc)
-                    {
-                        interpretComands.Add(functionCommands);
+                    if (!command.Contains("   ")) // вызов вне функций
+                    {              
+                        var nameOfCalledFunction = command.Split(' ')[1];
+                        var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
+                        foreach (var functionCommands in calledFunc)
+                        {
+                            interpretComands.Add(functionCommands);
+                        }
                     }
                 }
-                else if (!isFunction) // если это не функция
+                else if (!command.Contains("def") && !functionStart && command != "")
                 {
                     interpretComands.Add(command);
                 }
@@ -153,22 +138,8 @@ namespace KizhiPart2 {
             }
         }
 
-        public void RecursionProcessing()
-        {
-            metaFunc.Add(nameOfFunction, currentFunction);
-            functionList.Add(metaFunc);
-            for (int i = 0; i < 99999; i++)
-            {
-                nameOfCalledFunction = command.Trim().Split(' ')[1];
-                calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
-                foreach (var functionCommands in calledFunc)
-                {
-                    interpretComands.Add(functionCommands);
-                }
-            }
-        }
 
-        public List<string> GetFunctionCommandsByName(string name)
+        private List<string> GetFunctionCommandsByName(string name)
         {
             foreach (var function in functionList.Where(function => function.First().Key == name))
             {
@@ -203,6 +174,22 @@ namespace KizhiPart2 {
                     Rem(parsedCommand[1]);
                     break;
                 }
+                case "call": // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
+                    while(true)
+                    {
+                        var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
+                        foreach (var cmd in funcCommands)
+                        {
+                            var parsedCmd = cmd.Split(' ');
+
+                            if (parsedCmd[0] != "call")
+                            {
+                                interpretComands.Add(cmd);
+                            }
+                        }
+
+                    }
+                    break;
                 default: { 
                     break;
                 }

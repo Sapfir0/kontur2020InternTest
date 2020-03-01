@@ -80,7 +80,7 @@ namespace KizhiPart2 {
             pult.ExecuteLine("def test \n" +
                              "    print a \n" +
                              "    call test \n" +
-                             "set a 321" +
+                             "set a 321 \n" +
                              "call test \n");
 
         }
@@ -91,9 +91,24 @@ namespace KizhiPart2 {
             pult.ExecuteLine("def test \n" +
                              "    print a \n" +
                              "    call test \n" +
-                             "set a 321 \n");
+                             "set a 321 \n" +
+                             "print a \n");
 
         }
 
+        [Test]
+        public void CrossRecursion()
+        {
+            pult.ExecuteLine("def A \n" +
+                             "    print a \n" +
+                             "    call B \n" +
+                             "def B \n" +
+                             "    print b \n" +
+                             "    call A \n" +
+                             "set a 321 \n" +
+                             "set b 000 \n" +
+                             "call A \n");
+
+        }
     }
 }
