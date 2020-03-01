@@ -68,7 +68,6 @@ namespace KizhiPart2 {
         {
             pult.ExecuteLine("def test \n" +
                              "    rem a \n" +
-                             "    rem b \n" +
                              "set a 12 \n" +
                              "call test \n" +
                              "print a");

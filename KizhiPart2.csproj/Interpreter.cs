@@ -106,8 +106,10 @@ namespace KizhiPart2 {
             var commands = code.Split('\n').ToList();
             
             bool functionStart = false;
-            Dictionary<string, List<string>> currentFunction = new Dictionary<string, List<string>>();
-            string nameOfFunction = "None";
+            List<string> currentFunction = new List<string>();
+            string nameOfFunction = "none";
+            var metaFunc = new Dictionary<string, List<string>>();
+
             
             foreach (var command in commands)
             {
@@ -115,13 +117,15 @@ namespace KizhiPart2 {
                 {
                     if (command.Contains("  "))
                     {
-                        currentFunction[nameOfFunction].Add(command);
+                        currentFunction.Add(command.TrimStart());
                     }
                     else
                     {
                         functionStart = false;
-                        functionList.Add(currentFunction);
-                        currentFunction.Clear();
+                        metaFunc.Add(nameOfFunction, currentFunction);
+                        functionList.Add(metaFunc);
+                        //currentFunction.Clear();
+                        //metaFunc.Clear();
                     }
                 }
                 
@@ -129,11 +133,8 @@ namespace KizhiPart2 {
                 {
                     nameOfFunction = command.Split(' ')[1];
                     functionStart = true;
-                    currentFunction.Add(nameOfFunction, null);
                 }
-                
-
-                if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним  
+                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
                 {
                     var nameOfCalledFunction = command.Split(' ')[1];
                     var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
@@ -142,7 +143,7 @@ namespace KizhiPart2 {
                         interpretComands.Add(functionCommands);
                     }
                 }
-                else if (!command.Contains("def"))
+                else if (!command.Contains("def") && !functionStart)
                 {
                     interpretComands.Add(command);
                 }
