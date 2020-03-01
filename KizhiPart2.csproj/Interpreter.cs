@@ -16,7 +16,7 @@ namespace KizhiPart2 {
     public class Interpreter {
         private TextWriter _writer;
         Dictionary<string, int> storage = new Dictionary<string, int>(); // словарь для переменных
-        List<Dictionary<string, List<string>>> functionList = new List<Dictionary<string, List<string>>>(); //может быть сетом // тут будет название функции/команды внутри нее
+        Dictionary<string, List<string>> functionList = new Dictionary<string, List<string>>(); //может быть сетом // тут будет название функции/команды внутри нее
         List<string> interpretComands = new List<string>(); // просто команды которые будем запускать
         
         bool thisIsCodeBlock = false;
@@ -92,9 +92,7 @@ namespace KizhiPart2 {
             bool functionStart = false;
             List<string> currentFunction = new List<string>();
             string nameOfFunction = "none";
-            var metaFunc = new Dictionary<string, List<string>>();
 
-            
             foreach (var command in commands)
             {
                 if (functionStart)
@@ -106,10 +104,8 @@ namespace KizhiPart2 {
                     else
                     {
                         functionStart = false;
-                        metaFunc.Add(nameOfFunction, currentFunction);
-                        functionList.Add(metaFunc);
+                        functionList.Add(nameOfFunction, currentFunction);
                         //currentFunction.Clear();
-                        //metaFunc.Clear();
                     }
                 }
                 
@@ -141,61 +137,88 @@ namespace KizhiPart2 {
 
         private List<string> GetFunctionCommandsByName(string name)
         {
-            foreach (var function in functionList.Where(function => function.First().Key == name))
+            if (functionList.TryGetValue(name, out List<string> commands))
             {
-                return function[name];
+                return commands;
             }
-            return new List<string>(null);
+            else
+            {
+                WriteNotFoundMessage();
+                return null;
+            }
         }
 
         public void ParseString(string blob) 
         {
             var parsedCommand = blob.Split(' ');
+            
+            if (parsedCommand[0] == "call") // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
+            {
+                while(true)
+                {
+                    var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
+                    foreach (var cmd in funcCommands)
+                    {
+                        var parsedCmd = cmd.Split(' ');
 
-            switch (parsedCommand[0]) 
+                        if (parsedCmd[0] != "call")
+                        {
+                            if (parsedCmd.Length > 1)
+                            {
+                                Switch(parsedCmd[0], parsedCmd[1], parsedCmd[2]);
+                            }
+                            else
+                            {
+                                Switch(parsedCmd[0], parsedCmd[1]);
+                            }
+                            // не добавляем в очередь а сразу запускаем
+                        }
+                    }
+
+                }
+            }
+            else
+            {
+                if (parsedCommand.Length > 1)
+                {
+                    var value = parsedCommand[2];
+                    Switch(parsedCommand[0], parsedCommand[1], value);
+                }
+                else
+                {
+                    Switch(parsedCommand[0], parsedCommand[1]);
+
+                }
+            }
+            
+        }
+
+        public void Switch(string command, string variable, string value="0")
+        {
+            switch (command)
             {
                 case "set": 
                 {
-                    Set(parsedCommand[1], Int32.Parse(parsedCommand[2]));
+                    Set(variable, Int32.Parse(value));
                     break;
                 }
                 case "sub": 
                 {
-                    Sub(parsedCommand[1], Int32.Parse(parsedCommand[2]));
+                    Sub(variable, Int32.Parse(value));
                     break;
                 }
                 case "print": 
                 {
-                    Print(parsedCommand[1]);
+                    Print(variable);
                     break;
                 }
                 case "rem": 
                 {
-                    Rem(parsedCommand[1]);
-                    break;
-                }
-                case "call": // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
-                    while(true)
-                    {
-                        var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
-                        foreach (var cmd in funcCommands)
-                        {
-                            var parsedCmd = cmd.Split(' ');
-
-                            if (parsedCmd[0] != "call")
-                            {
-                                interpretComands.Add(cmd);
-                            }
-                        }
-
-                    }
-                    break;
-                default: { 
+                    Rem(variable);
                     break;
                 }
             }
         }
-        
         
         public void ExecuteLine(string command) 
         {

@@ -50,17 +50,17 @@ namespace KizhiPart2 {
 
         [Test]
         public void ExampleFunction() {
-            pult.ExecuteLine("def test " +
-                             "   set a 5 " +
-                             "   sub a 3 " +
-                             "   print b " +
-                             "   set b 7 " +
-                             "call test");
+            pult.ExecuteLine("def test \n" +
+                             "   set a 5 \n" +
+                             "   sub a 3 \n" +
+                             "   print b \n" +
+                             "   set b 7 \n" +
+                             "call test \n");
         }
         
         [Test]
         public void NotExistedFunction() {
-            pult.ExecuteLine("call test");
+            pult.ExecuteLine("call test \n");
         }
 
         [Test]
@@ -70,7 +70,7 @@ namespace KizhiPart2 {
                              "    rem a \n" +
                              "set a 12 \n" +
                              "call test \n" +
-                             "print a");
+                             "print a \n");
 
         }
         
