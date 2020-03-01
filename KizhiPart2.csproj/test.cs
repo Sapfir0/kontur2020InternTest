@@ -50,17 +50,17 @@ namespace KizhiPart2 {
 
         [Test]
         public void ExampleFunction() {
-            pult.ExecuteLine("def test " +
-                             "   set a 5 " +
-                             "   sub a 3 " +
-                             "   print b " +
-                             "   set b 7 " +
-                             "call test");
+            pult.ExecuteLine("def test \n" +
+                             "   set a 5 \n" +
+                             "   sub a 3 \n" +
+                             "   print b \n" +
+                             "   set b 7 \n" +
+                             "call test \n");
         }
         
         [Test]
         public void NotExistedFunction() {
-            pult.ExecuteLine("call test");
+            pult.ExecuteLine("call test \n");
         }
 
         [Test]
@@ -70,10 +70,45 @@ namespace KizhiPart2 {
                              "    rem a \n" +
                              "set a 12 \n" +
                              "call test \n" +
-                             "print a");
+                             "print a \n");
 
         }
         
+        [Test]
+        public void Recursive()
+        {
+            pult.ExecuteLine("def test \n" +
+                             "    print a \n" +
+                             "    call test \n" +
+                             "set a 321 \n" +
+                             "call test \n");
 
+        }
+        
+        [Test]
+        public void NotEnteredRecursion()
+        {
+            pult.ExecuteLine("def test \n" +
+                             "    print a \n" +
+                             "    call test \n" +
+                             "set a 321 \n" +
+                             "print a \n");
+
+        }
+
+        [Test]
+        public void CrossRecursion()
+        {
+            pult.ExecuteLine("def A \n" +
+                             "    print a \n" +
+                             "    call B \n" +
+                             "def B \n" +
+                             "    print b \n" +
+                             "    call A \n" +
+                             "set a 321 \n" +
+                             "set b 000 \n" +
+                             "call A \n");
+
+        }
     }
 }
