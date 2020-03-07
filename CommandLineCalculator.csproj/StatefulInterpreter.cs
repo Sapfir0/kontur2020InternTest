@@ -1,80 +1,85 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using CommandLineCalculator.Tests;
+using System.Text;
 
 namespace CommandLineCalculator
 {
-
     public sealed class StatefulInterpreter : Interpreter
     {
-        // должны запомнианать текущее состояние интерперетотра и всех переменных
         private static CultureInfo Culture => CultureInfo.InvariantCulture;
-
-        public override void Run(UserConsole console, Storage storage)
+        private Storage _storage;
+        public override void Run(UserConsole userConsole, Storage storage)
         {
             var x = 420L;
+            _storage = storage;
             while (true)
             {
-                var input = Console.ReadLine();
+                var input = userConsole.ReadLine();
                 switch (input.Trim())
                 {
                     case "exit":
                         return;
                     case "add":
-                        Add();
+                        Add(userConsole);
                         break;
                     case "median":
-                        Median();
+                        Median(userConsole);
                         break;
                     case "help":
-                        Help();
+                        Help(userConsole);
                         break;
                     case "rand":
-                        x = Random(x);
+                        x = Random(userConsole, x);
                         break;
                     default:
-                        Console.WriteLine("Такой команды нет, используйте help для списка команд");
+                        userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
                         break;
                 }
             }
         }
-        
 
-        private long Random(long x)
+        private long Random(UserConsole console, long x)
         {
             const int a = 16807;
             const int m = 2147483647;
 
-            var count = ReadNumber();
+            var count = ReadNumber(console);
             for (var i = 0; i < count; i++)
             {
-                Console.WriteLine(x.ToString(Culture));
+                console.WriteLine(x.ToString(Culture));
                 x = a * x % m;
             }
 
             return x;
         }
 
-        private void Add()
+        private byte[] ToByte(string str)
         {
-            var a = ReadNumber();
-            var b = ReadNumber();
-            var str = (a + b).ToString();
-            Console.WriteLine(str);
+            return Encoding.ASCII.GetBytes(str);
         }
 
-        private void Median()
+        private void Add(UserConsole console)
         {
-            var count = ReadNumber();
+            var a = ReadNumber(console);
+            var b = ReadNumber(console);
+            _storage.Write(ToByte("add " + a + " " + b));
+            console.WriteLine((a + b).ToString(Culture));
+            
+
+        }
+
+        private void Median(UserConsole console)
+        {
+            var count = ReadNumber(console);
             var numbers = new List<int>();
             for (var i = 0; i < count; i++)
             {
-                numbers.Add(ReadNumber());
+                numbers.Add(ReadNumber(console));
             }
 
             var result = CalculateMedian(numbers);
-            Console.WriteLine(result.ToString(Culture));
+            console.WriteLine(result.ToString(Culture));
         }
 
         private double CalculateMedian(List<int> numbers)
@@ -90,47 +95,45 @@ namespace CommandLineCalculator
             return (numbers[count / 2 - 1] + numbers[count / 2]) / 2.0;
         }
 
-        private static void Help()
+        private static void Help(UserConsole console)
         {
             const string exitMessage = "Чтобы выйти из режима помощи введите end";
             const string commands = "Доступные команды: add, median, rand";
 
-            Console.WriteLine("Укажите команду, для которой хотите посмотреть помощь");
-            Console.WriteLine(commands);
-            Console.WriteLine(exitMessage);
+            console.WriteLine("Укажите команду, для которой хотите посмотреть помощь");
+            console.WriteLine(commands);
+            console.WriteLine(exitMessage);
             while (true)
             {
-                var command = Console.ReadLine();
+                var command = console.ReadLine();
                 switch (command.Trim())
                 {
                     case "end":
                         return;
                     case "add":
-                        Console.WriteLine("Вычисляет сумму двух чисел");
-                        Console.WriteLine(exitMessage);
+                        console.WriteLine("Вычисляет сумму двух чисел");
+                        console.WriteLine(exitMessage);
                         break;
                     case "median":
-                        Console.WriteLine("Вычисляет медиану списка чисел");
-                        Console.WriteLine(exitMessage);
+                        console.WriteLine("Вычисляет медиану списка чисел");
+                        console.WriteLine(exitMessage);
                         break;
                     case "rand":
-                        Console.WriteLine("Генерирует список случайных чисел");
-                        Console.WriteLine(exitMessage);
+                        console.WriteLine("Генерирует список случайных чисел");
+                        console.WriteLine(exitMessage);
                         break;
                     default:
-                        Console.WriteLine("Такой команды нет");
-                        Console.WriteLine(commands);
-                        Console.WriteLine(exitMessage);
+                        console.WriteLine("Такой команды нет");
+                        console.WriteLine(commands);
+                        console.WriteLine(exitMessage);
                         break;
                 }
             }
         }
 
-        private int ReadNumber()
+        private int ReadNumber(UserConsole console)
         {
-            return int.Parse(Console.ReadLine().Trim(), Culture);
+            return int.Parse(console.ReadLine().Trim(), Culture);
         }
-    
-        
     }
 }
