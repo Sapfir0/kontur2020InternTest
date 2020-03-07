@@ -14,6 +14,7 @@ namespace ToDoList
             public int entryId; // айдишник тупа
             public long timestamp;
             public int userId; // юзер последнего изменившего
+            public int authorId;
             
             public Datas(int entryId, int userId, long timestamp)
             {
@@ -92,6 +93,8 @@ namespace ToDoList
                 {
                     var index = IndexOfElement(entryId);
                     enrtySet[index] = new Entry(entryId, name, EntryState.Undone);
+                    db[index] = new Datas(entryId,userId, timestamp);
+                    
                 }
                 else
                 {
@@ -139,41 +142,97 @@ namespace ToDoList
         public void MarkDone(int entryId, int userId, long timestamp)
         {
             var index = IndexOfElement(entryId);
-            enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Done);
-            db[index].timestamp = timestamp;
-            db[index].userId = userId;
+            if (index != -1)
+            {
+                enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Done);
+                db[index].timestamp = timestamp;
+                db[index].userId = userId;
+                HistoryAdd(entryId, userId, enrtySet[index].Name, timestamp, EntryState.Done);
+
+            }
+            else
+            {
+                HistoryAdd(entryId, userId, " ", timestamp, EntryState.Done);
+            }
+
         }
 
         public void MarkUndone(int entryId, int userId, long timestamp)
         {
             var index = IndexOfElement(entryId);
-            enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Undone);
-            db[index].timestamp = timestamp;
-            db[index].userId = userId;
-            
+            if (index != -1)
+            {
+                enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Undone);
+                db[index].timestamp = timestamp;
+                db[index].userId = userId;
+                HistoryAdd(entryId, userId, enrtySet[index].Name, timestamp, EntryState.Undone);
+
+            }
+            else
+            {
+                HistoryAdd(entryId, userId, " ", timestamp, EntryState.Undone);
+            }
+
         }
 
         public void DismissUser(int userId)
         {
             dismissedUsers.Add(userId);
-
-            for (int i = 0; i < enrtySet.Count; i++)
+            for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
             {
-                if (db[i].userId == userId)
+                if (db[entryIterator].userId == userId) // если у нас есть коммит отзамьюченного юзера
                 {
-                    db.RemoveAt(i);
-                    enrtySet.RemoveAt(i);
+                    //мы не должны удалять, а просто заменять запись на запись из истории с меньшим таймстемпов и другом юзерайди
+                    var ticket = history[enrtySet[entryIterator].Id];
+                    bool isEdited = false;
+                    for (int historyIterator = ticket.Count-1; historyIterator >= 0 ; historyIterator--) // то мы идем по истории от самой последней, и ищем коммит от другого чела
+                    {
+                        if (ticket[historyIterator].userId != userId)
+                        {
+                            isEdited = true;
+                            enrtySet[entryIterator] = new Entry(
+                                enrtySet[entryIterator].Id, 
+                                ticket[historyIterator].name, 
+                                ticket[historyIterator].state );
+                            db[entryIterator].timestamp = ticket[historyIterator].timestamp;
+                            db[entryIterator].userId = userId;
+
+                            break; // TODO вероятнее всего тут такого быть не должно
+                        }
+                        else // если все коммиты были сделаны от забанненого юзера, удалим запись
+                        {
+                            //entryIteratorGlobal = entryIterator;
+
+                        }
+                    }
+                    if (!isEdited)
+                    {
+                        db.RemoveAt(entryIterator);
+                        enrtySet.RemoveAt(entryIterator);
+                        Count--; 
+                    }
+
                 }
             }
         }
 
         public void AllowUser(int userId)
         {
+
+            foreach (var hist in history)
+            {
+                foreach (var action in hist.Value)
+                {
+                    if (dismissedUsers.Contains(userId))
+                    {
+                        AddToEntryList(hist.Key, action.userId, action.name, action.timestamp, action.state);
+                    }
+                }
+
+            }
+            
             dismissedUsers.Remove(userId);
 
-            
-            
-            
         }
 
         public IEnumerator<Entry> GetEnumerator()
