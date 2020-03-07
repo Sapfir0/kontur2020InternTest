@@ -188,6 +188,18 @@ namespace ToDoList
         }
 
         [Test]
+        public void MyCase()
+        {
+            list.AddEntry(42, userA, "Introduce autotests0", 100);
+            list.AddEntry(42, userA, "Introduce autotests2", 120);
+            list.AddEntry(42, userA, "Introduce autotests3", 50);
+            list.AddEntry(42, userA, "Introduce autotests4", 50);
+            list.AddEntry(42, userA, "Introduce autotests5", 500);
+            list.AddEntry(42, userA, "Introduce autotests6", 110);
+
+        }
+
+        [Test]
         public void Allow_User_That_Did_Nothing()
         {
             list.AddEntry(42, userA, "Introduce autotests", 100);

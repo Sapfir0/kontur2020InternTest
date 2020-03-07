@@ -42,32 +42,37 @@ namespace ToDoList
         List<Entry> enrtySet = new List<Entry>();
         List<Datas> db = new List<Datas>();
 
-        private Dictionary<int, LinkedList<History>> history = new Dictionary<int, LinkedList<History>>();
+        private Dictionary<int, List<History>> history = new Dictionary<int, List<History>>();
         
         
         public void HistoryAdd(int entryId, int userId, string name, long timestamp, EntryState state)
         {
             
             var currentAction = new History(timestamp, userId, state, name);
-            if (history.TryGetValue(entryId, out LinkedList<History> historyList))
+            if (history.TryGetValue(entryId, out List<History> historyList))
             {
+                bool isInserted = false;
                 // теперь нам нужно инсертнуть в нужное место
-                foreach (var action in history[entryId])
+                for (int i = 0; i < history[entryId].Count; i++)
                 {
-                    if (action.timestamp < timestamp)
+                    var historyTimestamp = history[entryId][i].timestamp;
+                    if (historyTimestamp > timestamp)
                     {
-                        continue;
+                        isInserted = true;
+                        InsertBefore(entryId, i, currentAction);
+                        break;
                     }
-                    else
-                    {
-                        history[entryId].AddBefore(new LinkedListNode<History>(action), new LinkedListNode<History>(currentAction));
-                    }
+                }
+
+                if (!isInserted)
+                {
+                    history[entryId].Add(currentAction);
                 }
             }
             else
             {
-                history.Add(entryId, new LinkedList<History>());
-                history[entryId].AddLast(currentAction);
+                history.Add(entryId, new List<History>());
+                history[entryId].Add(currentAction);
             }
 
     
@@ -81,7 +86,7 @@ namespace ToDoList
 
             if (HasUserAccess(userId))
             {
-                var existedEntry = enrtySet.Find(x => x.Id == entryId);
+                var existedEntry =  enrtySet.Find(x => x.Id == entryId);
                 
                 if (existedEntry != null)
                 {
@@ -165,6 +170,8 @@ namespace ToDoList
         public void AllowUser(int userId)
         {
             dismissedUsers.Remove(userId);
+
+            
             
             
         }
@@ -186,5 +193,17 @@ namespace ToDoList
         }
 
         public int Count { get; set; }
+        
+        
+        void InsertBefore(int entryCode, int index, History action)
+        {
+            history[entryCode].Add(action);
+            for (int i = history[entryCode].Count -1; i > index ; i--)
+            {
+                history[entryCode][i] = history[entryCode][i - 1];
+            }
+
+            history[entryCode][index] = action;
+        }
     }
 }
