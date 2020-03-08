@@ -89,16 +89,41 @@ namespace ToDoList
             {
                 var existedEntry =  enrtySet.Find(x => x.Id == entryId);
                 
-                if (existedEntry != null)
+                if (existedEntry != null )
                 {
                     var index = IndexOfElement(entryId);
-                    enrtySet[index] = new Entry(entryId, name, EntryState.Undone);
-                    db[index] = new Datas(entryId,userId, timestamp);
-                    
+                    if (db[index].userId < userId && db[index].timestamp == timestamp)
+                    {
+                        
+                    }
+                    else
+                    {
+                        enrtySet[index] = new Entry(entryId, name, EntryState.Undone);
+                        db[index] = new Datas(entryId,userId, timestamp);
+                    }
+      
                 }
                 else
                 {
-                    AddToEntryList(entryId, userId, name, timestamp, EntryState.Undone);
+                    //var existedHistory = history[entryId].Find(x => x.userId == userId && x.timestamp <= timestamp);
+                    bool isAdded = false;
+                    for (int historyIterator = history[entryId].Count-1; historyIterator >= 0; historyIterator--)
+                    {
+                        var action = history[entryId][historyIterator];
+                        if (action.userId == userId && action.timestamp <= timestamp)
+                        {
+                            isAdded = true;
+                            AddToEntryList(entryId, action.userId, action.name, action.timestamp, action.state);
+                        }
+                    }
+
+                    if (!isAdded)
+                    {
+                        AddToEntryList(entryId, userId, name, timestamp, EntryState.Undone);
+                    }
+
+          
+                    
                 }
 
             }
@@ -107,10 +132,11 @@ namespace ToDoList
         public void RemoveEntry(int entryId, int userId, long timestamp)
         {
             var index = IndexOfElement(entryId);
-            if (timestamp > db[index].timestamp)
+            if (timestamp >= db[index].timestamp)
             {
                 enrtySet.RemoveAt(index);
                 db.RemoveAt(index);
+                Count--;
             }
             
         }
@@ -120,6 +146,8 @@ namespace ToDoList
             enrtySet.Add(new Entry(entryId, name, state));
             Count++;
             db.Add(new Datas(entryId, userId, timestamp));
+            db[db.Count-1].authorId = userId;
+
 
         }
 
@@ -199,11 +227,9 @@ namespace ToDoList
 
                             break; // TODO вероятнее всего тут такого быть не должно
                         }
-                        else // если все коммиты были сделаны от забанненого юзера, удалим запись
-                        {
-                            //entryIteratorGlobal = entryIterator;
+                        // если все коммиты были сделаны от забанненого юзера, удалим запись
+                        // а так же если первый коммит был сделан от забанненого
 
-                        }
                     }
                     if (!isEdited)
                     {
@@ -211,24 +237,53 @@ namespace ToDoList
                         enrtySet.RemoveAt(entryIterator);
                         Count--; 
                     }
-
+                }
+                if (db[entryIterator].authorId == userId)
+                {
+                    db.RemoveAt(entryIterator);
+                    enrtySet.RemoveAt(entryIterator);
+                    Count--; 
                 }
             }
         }
 
         public void AllowUser(int userId)
         {
-
-            foreach (var hist in history)
+            // нужно учитывать, что если мы не заменяем пост, а создаем новый, то нужно создавать и историю после него
+            for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
             {
-                foreach (var action in hist.Value)
+                if (db[entryIterator].userId == userId) // если у нас есть коммит отзамьюченного юзера
                 {
-                    if (dismissedUsers.Contains(userId))
+                    var ticket = history[enrtySet[entryIterator].Id];
+                    bool isEdited = false;
+                    for (int historyIterator = ticket.Count-1; historyIterator >= 0 ; historyIterator--) 
                     {
-                        AddToEntryList(hist.Key, action.userId, action.name, action.timestamp, action.state);
+                        if (ticket[historyIterator].userId == userId)
+                        {
+                            isEdited = true;
+                            enrtySet[entryIterator] = new Entry(
+                                enrtySet[entryIterator].Id, 
+                                ticket[historyIterator].name, 
+                                ticket[historyIterator].state );
+                            db[entryIterator].timestamp = ticket[historyIterator].timestamp;
+                            db[entryIterator].userId = userId;
+
+                            break; // TODO вероятнее всего тут такого быть не должно
+                        }
+ 
+                    }
+                    if (!isEdited)
+                    {
+                        Console.WriteLine("Добавляем в конец");
+                        //AddToEntryList(enrtySet[entryIterator].Id, ticket[h]);
                     }
                 }
+                if (db[entryIterator].authorId == userId)
+                {
+                    Console.WriteLine("Добавляем в конец2");
 
+                    //AddToEntryList(enrtySet[entryIterator].Id, );
+                }
             }
             
             dismissedUsers.Remove(userId);
