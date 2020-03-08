@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.IO;
 using CommandLineCalculator.Tests;
 using NUnit.Framework.Internal;
@@ -9,7 +10,7 @@ namespace CommandLineCalculator {
         static void Main(string[] args) {
             Console.WriteLine("Hello World!");
             var storage = new MemoryStorage();
-            TestConsole console = new TestConsole();
+            var console = new TextUserConsole(TextReader.Null, TextWriter.Null);
             var interpreter = new StatefulInterpreter();
             interpreter.Run(console, storage);
             

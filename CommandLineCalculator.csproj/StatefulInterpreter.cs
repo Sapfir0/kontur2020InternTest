@@ -5,39 +5,113 @@ using System.Text;
 
 namespace CommandLineCalculator
 {
+
+    class MyConsole : UserConsoleDecorator
+    {
+        protected UserConsole userConsole;
+        protected Storage storage;
+        private Datas data;
+        
+        public MyConsole(Storage storage, UserConsole userConsole) : base(storage, userConsole)
+        {
+            this.userConsole = userConsole;
+            this.storage = storage;
+            data = new Datas();
+        }
+        
+        public override void WriteLine(string content)
+        {
+            Console.WriteLine(content);
+        }
+
+        public override string ReadLine()
+        {
+            var line = Console.ReadLine();
+            
+            if (Int32.TryParse(line, out int number))
+            {
+                
+            }
+            else
+            {
+                data.command = line;
+            }
+            storage.Write(Str2Bytes(line));
+
+            return line;
+        }
+        
+        private byte[] Str2Bytes(string str)
+        {
+            return Encoding.UTF8.GetBytes(str);
+        }
+
+        private string Byte2Str(byte[] bytes)
+        {
+            return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+        }
+    }
+    abstract class UserConsoleDecorator : UserConsole
+    {
+        private UserConsole userConsole;
+        private Storage storage;
+
+        public UserConsoleDecorator(Storage storage, UserConsole userConsole) : base()
+        {
+            this.userConsole = userConsole;
+            this.storage = storage;
+        }
+    }
+
+    public class Datas
+    {
+        public string command;
+        public int a;
+        public int b;
+        public List<int> list;
+
+        public string ToString()
+        {
+            return $"{command} {a} {b} {list}";
+        }
+
+        public void FromString()
+        {
+            
+        }
+    }
+    
     public sealed class StatefulInterpreter : Interpreter
     {
         private static CultureInfo Culture => CultureInfo.InvariantCulture;
         private Storage _storage;
+        
         public override void Run(UserConsole userConsole, Storage storage)
         {
             var x = 420L;
             _storage = storage;
             
-            if (Byte2Str(storage.Read()) != null)
-            {
-                
-            }
+            var myConsole = new MyConsole(storage, userConsole);
             
             while (true)
             {
                 var input = userConsole.ReadLine();
-                storage.Write(Str2Bytes(input.Trim()));
+
                 switch (input.Trim())
                 {
                     case "exit":
                         return;
                     case "add":
-                        Add(userConsole);
+                        Add(myConsole);
                         break;
                     case "median":
-                        Median(userConsole);
+                        Median(myConsole);
                         break;
                     case "help":
-                        Help(userConsole);
+                        Help(myConsole);
                         break;
                     case "rand":
-                        x = Random(userConsole, x);
+                        x = Random(myConsole, x);
                         break;
                     default:
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
@@ -61,25 +135,11 @@ namespace CommandLineCalculator
             return x;
         }
 
-        private byte[] Str2Bytes(string str)
-        {
-            return Encoding.UTF8.GetBytes(str);
-        }
-
-        private string Byte2Str(byte[] bytes)
-        {
-            return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-
-        }
-
         private void Add(UserConsole console)
-        {
+        {           
             var a = ReadNumber(console);
             var b = ReadNumber(console);
-            _storage.Write(Str2Bytes("add " + a + " " + b));
             console.WriteLine((a + b).ToString(Culture));
-            
-
         }
 
         private void Median(UserConsole console)

@@ -117,6 +117,8 @@ namespace ToDoList
                     }
                     else
                     {
+                        if (name == " ") throw new Exception("Ошибка пробела1");
+
                         enrtySet[myindex] = new Entry(entryId, name, EntryState.Undone);
                         db[myindex] = new Datas(entryId,userId, timestamp);
                     }
@@ -145,6 +147,8 @@ namespace ToDoList
                                 
                                 if (history[entryId][i].timestamp <= timestamp)// можно больше либо равно, тогда еще проверять юзерайди
                                 {
+                                    if (name == " ") throw new Exception("Ошибка пробела2");
+
                                     enrtySet[0] = new Entry(entryId, name, history[entryId][i].state);
                                     db[0] = new Datas(entryId, history[entryId][i].userId, history[entryId][i].timestamp);
                                     db[0].authorId = history[entryId][i].userId;
@@ -157,6 +161,8 @@ namespace ToDoList
 
                     if (!isAdded)
                     {
+                        if (name == " ") throw new Exception("Ошибка пробела3");
+
                         AddToEntryList(entryId, userId, name, timestamp, EntryState.Undone);
                     }
 
@@ -182,6 +188,8 @@ namespace ToDoList
 
         public void AddToEntryList(int entryId, int userId, string name, long timestamp, EntryState state)
         {
+            //if (name == " ") throw new Exception("Ошибка пробела4");
+
             enrtySet.Add(new Entry(entryId, name, state));
             Count++;
             db.Add(new Datas(entryId, userId, timestamp));
@@ -309,7 +317,7 @@ namespace ToDoList
         public void AllowUser(int userId)
         {
             // нужно учитывать, что если мы не заменяем пост, а создаем новый, то нужно создавать и историю после него
-            History globalTicker = new History(0,0,EntryState.Done, "0");
+            History globalTicker = new History(0,0,EntryState.Done, "Introduce autotests");
             var GlobalEntryIterator = history.Last().Key;
             var globalName = history.Last().Value.Last().name;
             for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
@@ -350,8 +358,9 @@ namespace ToDoList
                 }
             }
 
-            if (enrtySet.Count == 0) //ахаха
+            if (enrtySet.Count == 0 ) //ахаха
             {
+
                 AddToEntryList(GlobalEntryIterator, globalTicker.userId, globalName, globalTicker.timestamp, globalTicker.state);
             }
             
