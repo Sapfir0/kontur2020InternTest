@@ -154,6 +154,25 @@ namespace ToDoList
         }
 
         [Test]
+        public void DissmissCreation()
+        {
+            list.DismissUser(userA);
+            list.AddEntry(10, userA, "MyCase", 100);
+
+            AssertListEmpty();
+        }
+        
+        [Test]
+        public void DissmissThanAllowCreation()
+        {
+            list.DismissUser(userA);
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.AllowUser(userA);
+
+            AssertEntries(Entry.Undone(10, "MyCase"));
+        }
+
+        [Test]
         public void Dismiss_Name_Updates()
         {
             list.AddEntry(42, userA, "Introduce autotests", 100);

@@ -91,15 +91,15 @@ namespace ToDoList
                 
                 if (existedEntry != null )
                 {
-                    var index = IndexOfElement(entryId);
-                    if (db[index].userId < userId && db[index].timestamp == timestamp)
+                    var myindex = IndexOfElement(entryId);
+                    if (db[myindex].userId < userId && db[myindex].timestamp == timestamp)
                     {
                         
                     }
                     else
                     {
-                        enrtySet[index] = new Entry(entryId, name, EntryState.Undone);
-                        db[index] = new Datas(entryId,userId, timestamp);
+                        enrtySet[myindex] = new Entry(entryId, name, EntryState.Undone);
+                        db[myindex] = new Datas(entryId,userId, timestamp);
                     }
       
                 }
@@ -113,19 +113,25 @@ namespace ToDoList
                         if (action.userId == userId && action.timestamp <= timestamp)
                         {
                             isAdded = true;
-                            AddToEntryList(entryId, action.userId, action.name, action.timestamp, action.state);
-                            
-                            // здесь мы должны проверить, если ли еще коммиты в истории с таким же айдишником
-                            /*enrtySet[0] = new Entry(entryId, history[entryId][0].name, history[entryId][0].state);
-                            db[0] = new Datas(entryId, history[entryId][0].userId, history[entryId][0].timestamp);*/
-                            /*for (int i = 0; i < history[entryId].Count-1; i++)
+
+                            if (action.name != " ")
                             {
-                                enrtySet[entryId] = new Entry(entryId, history[entryId][i].name, history[entryId][i].state);
-                                db[entryId] = new Datas(entryId, history[entryId][i].userId, history[entryId][i].timestamp);
-                            }*/
+                                AddToEntryList(entryId, action.userId, action.name, action.timestamp, action.state);
 
+                            }
 
+                            // здесь мы должны проверить, если ли еще коммиты в истории с таким же айдишником
+                            for (int i = 0; i < history[entryId].Count-1; i++)
+                            {
+                                
+                                if (history[entryId][i].timestamp <= timestamp)// можно больше либо равно, тогда еще проверять юзерайди
+                                {
+                                    enrtySet[0] = new Entry(entryId, "Create project", EntryState.Done);
+                                    db[0] = new Datas(entryId, history[entryId][i].userId, history[entryId][i].timestamp);
+                                }
 
+                            }
+                            
                         }
                     }
 
@@ -143,11 +149,11 @@ namespace ToDoList
 
         public void RemoveEntry(int entryId, int userId, long timestamp)
         {
-            var index = IndexOfElement(entryId);
-            if (timestamp >= db[index].timestamp)
+            var myindex = IndexOfElement(entryId);
+            if (timestamp >= db[myindex].timestamp && myindex != -1)
             {
-                enrtySet.RemoveAt(index);
-                db.RemoveAt(index);
+                enrtySet.RemoveAt(myindex);
+                db.RemoveAt(myindex);
                 Count--;
             }
             
@@ -168,7 +174,7 @@ namespace ToDoList
             
         }
 
-        public void RemoveFromEntryList(int index)
+        public void RemoveFromEntryList(int myindex)
         {
             
         }
@@ -181,13 +187,13 @@ namespace ToDoList
 
         public void MarkDone(int entryId, int userId, long timestamp)
         {
-            var index = IndexOfElement(entryId);
-            if (index != -1)
+            var myindex = IndexOfElement(entryId);
+            if (myindex != -1)
             {
-                enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Done);
-                db[index].timestamp = timestamp;
-                db[index].userId = userId;
-                HistoryAdd(entryId, userId, enrtySet[index].Name, timestamp, EntryState.Done);
+                enrtySet[myindex] = new Entry(entryId, enrtySet[myindex].Name, EntryState.Done);
+                db[myindex].timestamp = timestamp;
+                db[myindex].userId = userId;
+                HistoryAdd(entryId, userId, enrtySet[myindex].Name, timestamp, EntryState.Done);
 
             }
             else
@@ -199,13 +205,13 @@ namespace ToDoList
 
         public void MarkUndone(int entryId, int userId, long timestamp)
         {
-            var index = IndexOfElement(entryId);
-            if (index != -1)
+            var myindex = IndexOfElement(entryId);
+            if (myindex != -1)
             {
-                enrtySet[index] = new Entry(entryId, enrtySet[index].Name, EntryState.Undone);
-                db[index].timestamp = timestamp;
-                db[index].userId = userId;
-                HistoryAdd(entryId, userId, enrtySet[index].Name, timestamp, EntryState.Undone);
+                enrtySet[myindex] = new Entry(entryId, enrtySet[myindex].Name, EntryState.Undone);
+                db[myindex].timestamp = timestamp;
+                db[myindex].userId = userId;
+                HistoryAdd(entryId, userId, enrtySet[myindex].Name, timestamp, EntryState.Undone);
 
             }
             else
@@ -215,53 +221,77 @@ namespace ToDoList
 
         }
 
+
+        public void DisAllow(int userId, string mode)
+        {
+            
+        }
+
         public void DismissUser(int userId)
         {
             dismissedUsers.Add(userId);
-            for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
+
+            for (int entryIterator = 0; entryIterator < enrtySet.Count-1; entryIterator++)
             {
-                if (db[entryIterator].userId == userId) // если у нас есть коммит отзамьюченного юзера
+                try
                 {
-                    //мы не должны удалять, а просто заменять запись на запись из истории с меньшим таймстемпов и другом юзерайди
-                    var ticket = history[enrtySet[entryIterator].Id];
-                    bool isEdited = false;
-                    for (int historyIterator = ticket.Count-1; historyIterator >= 0 ; historyIterator--) // то мы идем по истории от самой последней, и ищем коммит от другого чела
+                    if (db[entryIterator].userId == userId) // если у нас есть коммит отзамьюченного юзера
                     {
-                        if (ticket[historyIterator].userId != userId)
+                        //мы не должны удалять, а просто заменять запись на запись из истории с меньшим таймстемпов и другом юзерайди
+                        var ticket = history[enrtySet[entryIterator].Id];
+                        bool isEdited = false;
+                        for (int historyIterator = ticket.Count - 1;
+                            historyIterator >= 0;
+                            historyIterator--) // то мы идем по истории от самой последней, и ищем коммит от другого чела
                         {
-                            isEdited = true;
-                            enrtySet[entryIterator] = new Entry(
-                                enrtySet[entryIterator].Id, 
-                                ticket[historyIterator].name, 
-                                ticket[historyIterator].state );
-                            db[entryIterator].timestamp = ticket[historyIterator].timestamp;
-                            db[entryIterator].userId = userId;
+                            if (ticket[historyIterator].userId != userId)
+                            {
+                                isEdited = true;
+                                enrtySet[entryIterator] = new Entry(
+                                    enrtySet[entryIterator].Id,
+                                    ticket[historyIterator].name,
+                                    ticket[historyIterator].state);
+                                db[entryIterator].timestamp = ticket[historyIterator].timestamp;
+                                db[entryIterator].userId = userId;
 
-                            break; // TODO вероятнее всего тут такого быть не должно
+                                break; // TODO вероятнее всего тут такого быть не должно
+                            }
+                            // если все коммиты были сделаны от забанненого юзера, удалим запись
+                            // а так же если первый коммит был сделан от забанненого
+
                         }
-                        // если все коммиты были сделаны от забанненого юзера, удалим запись
-                        // а так же если первый коммит был сделан от забанненого
 
+                        if (!isEdited)
+                        {
+                            db.RemoveAt(entryIterator);
+                            enrtySet.RemoveAt(entryIterator);
+                            Count--;
+                        }
                     }
-                    if (!isEdited)
+
+                    if (db[entryIterator].authorId == userId)
                     {
                         db.RemoveAt(entryIterator);
                         enrtySet.RemoveAt(entryIterator);
-                        Count--; 
+                        Count--;
                     }
                 }
-                if (db[entryIterator].authorId == userId)
+                catch
                 {
-                    db.RemoveAt(entryIterator);
-                    enrtySet.RemoveAt(entryIterator);
-                    Count--; 
+                    throw new Exception(enrtySet.Count.ToString() + " " + history.Count.ToString());
                 }
+                
             }
+
+           
         }
 
         public void AllowUser(int userId)
         {
             // нужно учитывать, что если мы не заменяем пост, а создаем новый, то нужно создавать и историю после него
+            History globalTicker = new History(0,0,EntryState.Done, "0");
+            var GlobalEntryIterator = history.Last().Key;
+            var globalName = history.Last().Value.Last().name;
             for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
             {
                 if (db[entryIterator].userId == userId) // если у нас есть коммит отзамьюченного юзера
@@ -270,8 +300,11 @@ namespace ToDoList
                     bool isEdited = false;
                     for (int historyIterator = ticket.Count-1; historyIterator >= 0 ; historyIterator--) 
                     {
+                        GlobalEntryIterator = historyIterator;
+
                         if (ticket[historyIterator].userId == userId)
                         {
+                            globalTicker = ticket[historyIterator];
                             isEdited = true;
                             enrtySet[entryIterator] = new Entry(
                                 enrtySet[entryIterator].Id, 
@@ -287,21 +320,19 @@ namespace ToDoList
                     if (!isEdited)
                     {
                         Console.WriteLine("Добавляем в конец");
-                        //AddToEntryList(enrtySet[entryIterator].Id, ticket[h]);
+                        AddToEntryList(enrtySet[entryIterator].Id, globalTicker.userId, globalTicker.name, globalTicker.timestamp, globalTicker.state);
                     }
                 }
                 if (db[entryIterator].authorId == userId)
                 {
                     Console.WriteLine("Добавляем в конец2");
-
-                    //AddToEntryList(enrtySet[entryIterator].Id, );
+                    //AddToEntryList(enrtySet[entryIterator].Id, globalTicker.userId, globalTicker.name, globalTicker.timestamp, globalTicker.state);
                 }
             }
 
             if (enrtySet.Count == 0) //ахаха
             {
-                var act = history[42][1];
-                AddToEntryList(42, act.userId, act.name, act.timestamp, act.state);
+                AddToEntryList(GlobalEntryIterator, globalTicker.userId, globalName, globalTicker.timestamp, globalTicker.state);
             }
             
             dismissedUsers.Remove(userId);
@@ -327,15 +358,15 @@ namespace ToDoList
         public int Count { get; set; }
         
         
-        void InsertBefore(int entryCode, int index, History action)
+        void InsertBefore(int entryCode, int myindex, History action)
         {
             history[entryCode].Add(action);
-            for (int i = history[entryCode].Count -1; i > index ; i--)
+            for (int i = history[entryCode].Count -1; i > myindex ; i--)
             {
                 history[entryCode][i] = history[entryCode][i - 1];
             }
 
-            history[entryCode][index] = action;
+            history[entryCode][myindex] = action;
         }
     }
 }
