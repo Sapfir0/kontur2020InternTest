@@ -171,6 +171,18 @@ namespace ToDoList
 
             AssertEntries(Entry.Undone(10, "MyCase"));
         }
+        
+        [Test]
+        public void Dissy()
+        {
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.MarkDone(10, userA, 101);
+            list.RemoveEntry(10, userA, 102);
+            list.AddEntry(10, userA, "MyCase", 104);
+
+
+            AssertEntries(Entry.Undone(10, "MyCase"));
+        }
 
         [Test]
         public void Dismiss_Name_Updates()

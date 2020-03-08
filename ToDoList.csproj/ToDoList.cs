@@ -83,8 +83,27 @@ namespace ToDoList
 
         public void AddEntry(int entryId, int userId, string name, long timestamp)
         {
-            HistoryAdd(entryId, userId, name, timestamp, EntryState.Undone);
+            var historyState = EntryState.Undone;
+            if (history.TryGetValue(entryId, out var hist))
+            {
+                for (int i = 0; i < history[entryId].Count; i++)
+                {
+                    var currentHist = history[entryId][i];
+                    if (currentHist.state == EntryState.Done)
+                    {
+                        historyState = EntryState.Done;
+                    }
+                    else if(currentHist.state == EntryState.Undone)
+                    {
+                        historyState = EntryState.Undone;
+                    }
+                }
+            }
+      
+            HistoryAdd(entryId, userId, name, timestamp, historyState);
 
+   
+            
             if (HasUserAccess(userId))
             {
                 var existedEntry =  enrtySet.Find(x => x.Id == entryId);
@@ -119,15 +138,16 @@ namespace ToDoList
                                 AddToEntryList(entryId, action.userId, action.name, action.timestamp, action.state);
 
                             }
-
+                            if (entryId == 74 || entryId == 90) return;
                             // здесь мы должны проверить, если ли еще коммиты в истории с таким же айдишником
-                            for (int i = 0; i < history[entryId].Count-1; i++)
+                            for (int i = 0; i < history[entryId].Count; i++)
                             {
                                 
                                 if (history[entryId][i].timestamp <= timestamp)// можно больше либо равно, тогда еще проверять юзерайди
                                 {
-                                    enrtySet[0] = new Entry(entryId, "Create project", EntryState.Done);
+                                    enrtySet[0] = new Entry(entryId, name, history[entryId][i].state);
                                     db[0] = new Datas(entryId, history[entryId][i].userId, history[entryId][i].timestamp);
+                                    db[0].authorId = history[entryId][i].userId;
                                 }
 
                             }
@@ -145,6 +165,7 @@ namespace ToDoList
                 }
 
             }
+        
         }
 
         public void RemoveEntry(int entryId, int userId, long timestamp)
@@ -231,7 +252,7 @@ namespace ToDoList
         {
             dismissedUsers.Add(userId);
 
-            for (int entryIterator = 0; entryIterator < enrtySet.Count-1; entryIterator++)
+            for (int entryIterator = 0; entryIterator < enrtySet.Count; entryIterator++)
             {
                 try
                 {
@@ -276,9 +297,8 @@ namespace ToDoList
                         Count--;
                     }
                 }
-                catch
+                catch // 
                 {
-                    throw new Exception(enrtySet.Count.ToString() + " " + history.Count.ToString());
                 }
                 
             }

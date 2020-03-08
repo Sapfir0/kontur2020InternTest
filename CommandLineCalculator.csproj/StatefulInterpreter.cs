@@ -13,9 +13,16 @@ namespace CommandLineCalculator
         {
             var x = 420L;
             _storage = storage;
+            
+            if (Byte2Str(storage.Read()) != null)
+            {
+                
+            }
+            
             while (true)
             {
                 var input = userConsole.ReadLine();
+                storage.Write(Str2Bytes(input.Trim()));
                 switch (input.Trim())
                 {
                     case "exit":
@@ -54,16 +61,22 @@ namespace CommandLineCalculator
             return x;
         }
 
-        private byte[] ToByte(string str)
+        private byte[] Str2Bytes(string str)
         {
-            return Encoding.ASCII.GetBytes(str);
+            return Encoding.UTF8.GetBytes(str);
+        }
+
+        private string Byte2Str(byte[] bytes)
+        {
+            return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
+
         }
 
         private void Add(UserConsole console)
         {
             var a = ReadNumber(console);
             var b = ReadNumber(console);
-            _storage.Write(ToByte("add " + a + " " + b));
+            _storage.Write(Str2Bytes("add " + a + " " + b));
             console.WriteLine((a + b).ToString(Culture));
             
 
