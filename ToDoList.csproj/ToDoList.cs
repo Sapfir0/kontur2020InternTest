@@ -114,6 +114,18 @@ namespace ToDoList
                         {
                             isAdded = true;
                             AddToEntryList(entryId, action.userId, action.name, action.timestamp, action.state);
+                            
+                            // здесь мы должны проверить, если ли еще коммиты в истории с таким же айдишником
+                            /*enrtySet[0] = new Entry(entryId, history[entryId][0].name, history[entryId][0].state);
+                            db[0] = new Datas(entryId, history[entryId][0].userId, history[entryId][0].timestamp);*/
+                            /*for (int i = 0; i < history[entryId].Count-1; i++)
+                            {
+                                enrtySet[entryId] = new Entry(entryId, history[entryId][i].name, history[entryId][i].state);
+                                db[entryId] = new Datas(entryId, history[entryId][i].userId, history[entryId][i].timestamp);
+                            }*/
+
+
+
                         }
                     }
 
@@ -284,6 +296,12 @@ namespace ToDoList
 
                     //AddToEntryList(enrtySet[entryIterator].Id, );
                 }
+            }
+
+            if (enrtySet.Count == 0) //ахаха
+            {
+                var act = history[42][1];
+                AddToEntryList(42, act.userId, act.name, act.timestamp, act.state);
             }
             
             dismissedUsers.Remove(userId);
