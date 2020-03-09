@@ -14,76 +14,23 @@ namespace CommandLineCalculator
     {
         protected UserConsole userConsole;
         protected Storage storage;
-        private Datas data;
+        public Datas data;
         
         public MyConsole(Storage storage, UserConsole userConsole, Datas data) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
             this.data = data;
-            this.data.FromString(Byte2Str(storage.Read())); // заполняем дату из нашего стореджа
-        }
-        
-        public override void WriteLine(string content)
-        {
-            data.outputCommands.Add(content);
-            storage.Write(Str2Bytes(data.ToString())); // перезапишем все что было
-            
-
-            
-            
-            var commands = Byte2Str(storage.Read());
-            Console.WriteLine(commands);
-
         }
 
-        public override string ReadLine()
-        {
-            string line;
-            if (storage.Read().Length != 0)
-            {
-                line = Byte2Str(storage.Read());
-            }
-            else
-            {
-                line = Console.ReadLine();
-            }
-            data.inputCommands.Add(line);
-            storage.Write(Str2Bytes(data.ToString()));
-        
-            return line;
-
-        }
-        
-        private byte[] Str2Bytes(string str)
-        {
-            return Encoding.UTF8.GetBytes(str);
-        }
-
-        private string Byte2Str(byte[] bytes)
-        {
-            return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-        }
-    }
-
-    [Serializable]
-    public class Datas
-    {
-        public List<string> inputCommands = new List<string>();
-        public List<string> outputCommands = new List<string>();
-        public int lastInputCommand;
-        public int lastOutputCommand;
-
-        public void Serialize()
+        public void Serialize(Datas localData)
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            try 
+            try
             {
-                using (FileStream fs = new FileStream("people.dat", FileMode.OpenOrCreate))
-                {
-                    formatter.Serialize(stream, inputCommands);
-                    formatter.Serialize(stream, outputCommands);
-                }
+                using var stream = new MemoryStream();
+                formatter.Serialize(stream, localData);
+                storage.Write(stream.GetBuffer());
             }
             catch (SerializationException e) 
             {
@@ -92,11 +39,87 @@ namespace CommandLineCalculator
             }
             
         }
-
-        public void Deserialize(string ser)
+        public Datas Deserialize()
         {
-  
+            BinaryFormatter formatter = new BinaryFormatter();
+            try
+            {
+                using var stream = new MemoryStream(storage.Read());
+                if (stream.Length == 0)
+                {
+                    return new Datas();
+                }
+                return (Datas)formatter.Deserialize(stream);
+            }
+            catch (SerializationException e) 
+            {
+                Console.WriteLine("Failed to deserialize. Reason: " + e.Message);
+                throw;
+            }
         }
+        
+        public override void WriteLine(string content)
+        {
+
+            var storageData = Deserialize();
+            if (storageData.lastOutputCommand != data.lastOutputCommand)
+            {
+                data = storageData;
+                //data.lastOutputCommand++;
+                userConsole.WriteLine(storageData.outputCommands[storageData.lastOutputCommand-1]);
+                Serialize(data);
+            }
+            else
+            {
+                data.outputCommands.Add(content);
+                data.lastOutputCommand++;
+                userConsole.WriteLine(content);
+                Serialize(data);
+            }
+            
+            
+            data = Deserialize();
+
+        }
+
+        public override string ReadLine()
+        {
+            string line = "its a nullable";
+            var storageData = Deserialize();
+            if (storageData.lastInputCommand != data.lastInputCommand) //нужно эмулировать считивание
+            {
+                data.lastInputCommand++;
+                if (data.lastInputCommand <= storageData.lastInputCommand)
+                {
+                    return storageData.inputCommands[data.lastInputCommand-1];
+                }
+            }
+            else
+            {
+                line = userConsole.ReadLine();
+                data.inputCommands.Add(line);
+
+                //допустим, что уже ничего плохого не произойдет
+                data.lastInputCommand++;
+                Serialize(data);
+            }
+
+
+        
+            return line;
+
+        }
+        
+    }
+
+    [Serializable]
+    public class Datas
+    {
+        public List<string> inputCommands = new List<string>();
+        public List<string> outputCommands = new List<string>();
+        public int lastInputCommand = 0;
+        public int lastOutputCommand = 0;
+        
     }
     
     public sealed class StatefulInterpreter : Interpreter
@@ -136,9 +159,12 @@ namespace CommandLineCalculator
                         break;
                 }
                 
-                data.inputCommands.Clear();
-                data.outputCommands.Clear();
-                storage.Write(new byte[0]);
+                myConsole.data.inputCommands.Clear();
+                myConsole.data.outputCommands.Clear();
+                myConsole.data.lastInputCommand = 0;
+                myConsole.data.lastOutputCommand = 0;
+                myConsole.Serialize(myConsole.data);
+                
             }
         }
 
