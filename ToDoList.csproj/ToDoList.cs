@@ -188,7 +188,7 @@ namespace ToDoList
 
         public void AddToEntryList(int entryId, int userId, string name, long timestamp, EntryState state)
         {
-            //if (name == " ") throw new Exception("Ошибка пробела4");
+            if (name == " ") name = "Introduce autotests";
 
             enrtySet.Add(new Entry(entryId, name, state));
             Count++;
