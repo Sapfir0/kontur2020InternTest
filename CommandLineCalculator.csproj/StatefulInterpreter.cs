@@ -16,11 +16,11 @@ namespace CommandLineCalculator
         protected Storage storage;
         public Datas data;
         
-        public MyConsole(Storage storage, UserConsole userConsole, Datas data) : base()
+        public MyConsole(Storage storage, UserConsole userConsole) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
-            this.data = data;
+            this.data = Deserialize(); // если выделять нью каждый раз при вызове конструткора, то будет работать толлько для первого исключения
         }
 
         public void Serialize(Datas localData)
@@ -125,13 +125,12 @@ namespace CommandLineCalculator
     public sealed class StatefulInterpreter : Interpreter
     {
         private static CultureInfo Culture => CultureInfo.InvariantCulture;
-        private Datas data = new Datas(); // не уверен насчет этого момента
         
         public override void Run(UserConsole userConsole, Storage storage)
         {
             var x = 420L;
 
-            var myConsole = new MyConsole(storage, userConsole, data);
+            var myConsole = new MyConsole(storage, userConsole); // изменил тут когда все проходило12
             
             while (true)
             {
@@ -151,7 +150,7 @@ namespace CommandLineCalculator
                         Help(myConsole);
                         break;
                     case "rand":
-                        data.inputCommands.Add(x.ToString());
+                        myConsole.data.inputCommands.Add(x.ToString()); // изменил тут когда все проходило1
                         x = Random(myConsole, x);
                         break;
                     default:
@@ -159,11 +158,11 @@ namespace CommandLineCalculator
                         break;
                 }
                 
-                myConsole.data.inputCommands.Clear();
+                /*myConsole.data.inputCommands.Clear();
                 myConsole.data.outputCommands.Clear();
                 myConsole.data.lastInputCommand = 0;
                 myConsole.data.lastOutputCommand = 0;
-                myConsole.Serialize(myConsole.data);
+                myConsole.Serialize(myConsole.data);*/
                 
             }
         }
