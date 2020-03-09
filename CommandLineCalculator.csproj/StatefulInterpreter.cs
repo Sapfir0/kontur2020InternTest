@@ -1,44 +1,58 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 namespace CommandLineCalculator
 {
 
-    class MyConsole : UserConsoleDecorator
+    class MyConsole : UserConsole
     {
         protected UserConsole userConsole;
         protected Storage storage;
         private Datas data;
         
-        public MyConsole(Storage storage, UserConsole userConsole) : base(storage, userConsole)
+        public MyConsole(Storage storage, UserConsole userConsole, Datas data) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
-            data = new Datas();
+            this.data = data;
+            this.data.FromString(Byte2Str(storage.Read())); // заполняем дату из нашего стореджа
         }
         
         public override void WriteLine(string content)
         {
-            Console.WriteLine(content);
+            data.outputCommands.Add(content);
+            storage.Write(Str2Bytes(data.ToString())); // перезапишем все что было
+            
+
+            
+            
+            var commands = Byte2Str(storage.Read());
+            Console.WriteLine(commands);
+
         }
 
         public override string ReadLine()
         {
-            var line = Console.ReadLine();
-            
-            if (Int32.TryParse(line, out int number))
+            string line;
+            if (storage.Read().Length != 0)
             {
-                
+                line = Byte2Str(storage.Read());
             }
             else
             {
-                data.command = line;
+                line = Console.ReadLine();
             }
-            storage.Write(Str2Bytes(line));
-
+            data.inputCommands.Add(line);
+            storage.Write(Str2Bytes(data.ToString()));
+        
             return line;
+
         }
         
         private byte[] Str2Bytes(string str)
@@ -51,51 +65,54 @@ namespace CommandLineCalculator
             return Encoding.UTF8.GetString(bytes, 0, bytes.Length);
         }
     }
-    abstract class UserConsoleDecorator : UserConsole
-    {
-        private UserConsole userConsole;
-        private Storage storage;
 
-        public UserConsoleDecorator(Storage storage, UserConsole userConsole) : base()
-        {
-            this.userConsole = userConsole;
-            this.storage = storage;
-        }
-    }
-
+    [Serializable]
     public class Datas
     {
-        public string command;
-        public int a;
-        public int b;
-        public List<int> list;
+        public List<string> inputCommands = new List<string>();
+        public List<string> outputCommands = new List<string>();
+        public int lastInputCommand;
+        public int lastOutputCommand;
 
-        public string ToString()
+        public void Serialize()
         {
-            return $"{command} {a} {b} {list}";
+            BinaryFormatter formatter = new BinaryFormatter();
+            try 
+            {
+                using (FileStream fs = new FileStream("people.dat", FileMode.OpenOrCreate))
+                {
+                    formatter.Serialize(stream, inputCommands);
+                    formatter.Serialize(stream, outputCommands);
+                }
+            }
+            catch (SerializationException e) 
+            {
+                Console.WriteLine("Failed to serialize. Reason: " + e.Message);
+                throw;
+            }
+            
         }
 
-        public void FromString()
+        public void Deserialize(string ser)
         {
-            
+  
         }
     }
     
     public sealed class StatefulInterpreter : Interpreter
     {
         private static CultureInfo Culture => CultureInfo.InvariantCulture;
-        private Storage _storage;
+        private Datas data = new Datas(); // не уверен насчет этого момента
         
         public override void Run(UserConsole userConsole, Storage storage)
         {
             var x = 420L;
-            _storage = storage;
-            
-            var myConsole = new MyConsole(storage, userConsole);
+
+            var myConsole = new MyConsole(storage, userConsole, data);
             
             while (true)
             {
-                var input = userConsole.ReadLine();
+                var input = myConsole.ReadLine();
 
                 switch (input.Trim())
                 {
@@ -111,12 +128,17 @@ namespace CommandLineCalculator
                         Help(myConsole);
                         break;
                     case "rand":
+                        data.inputCommands.Add(x.ToString());
                         x = Random(myConsole, x);
                         break;
                     default:
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
                         break;
                 }
+                
+                data.inputCommands.Clear();
+                data.outputCommands.Clear();
+                storage.Write(new byte[0]);
             }
         }
 
@@ -201,6 +223,7 @@ namespace CommandLineCalculator
                         console.WriteLine(exitMessage);
                         break;
                 }
+                
             }
         }
 

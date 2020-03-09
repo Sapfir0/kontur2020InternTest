@@ -10,7 +10,7 @@ namespace CommandLineCalculator {
         static void Main(string[] args) {
             Console.WriteLine("Hello World!");
             var storage = new MemoryStorage();
-            var console = new TextUserConsole(TextReader.Null, TextWriter.Null);
+            var console = new TextUserConsole(Console.In, Console.Out);
             var interpreter = new StatefulInterpreter();
             interpreter.Run(console, storage);
             

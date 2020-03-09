@@ -45,7 +45,7 @@ namespace Refactoring
                     OptionsSwitch(subCommand);
                     break;
                 case "Options show":
-                    return _optionsShower.optionsShow(command);
+                    return _optionsShower.OptionsShow(command);
                     break;
                 default:
                     break;
@@ -85,44 +85,18 @@ namespace Refactoring
             this._remoteController = remoteController;
         }
 
-        public string optionsShow(String command)
+        public string OptionsShow(string command)
         {
             var sb = new StringBuilder();
             sb.AppendLine("Options:");
-            int? brightness = 0;
-            if (!_remoteController.currentSettings.ContainsKey("brightness"))
-            {
-                brightness = 20;
-            }
-            else
-            {
-                brightness = _remoteController.currentSettings["brightness"];
-            }
-
+            _remoteController.currentSettings.TryGetValue("contrast", out var brightness);
             sb.AppendLine($"Volume {_remoteController.volume}");
             sb.AppendLine($"IsOnline {_remoteController.isOnline}");
             sb.AppendLine($"Brightness {brightness}");
-            int? contrast;
-            if (!_remoteController.currentSettings.ContainsKey("contrast"))
-            {
-                contrast = 20;
-            }
-            else
-            {
-                contrast = _remoteController.currentSettings["contrast"];
-            }
+            _remoteController.currentSettings.TryGetValue("contrast", out var contrast);
             sb.AppendLine($"Contrast {contrast}");
             return sb.ToString();
         }
     }
     
-    public class MainClass {
-        static int Main() {
-            var pult = new RemoteController();
-            pult.Call("Options change brightness up");
-            
-            return 0;
-            
-        }
-    }
 }
