@@ -7,9 +7,10 @@ namespace CommandLineCalculator
     {
         private static CultureInfo Culture => CultureInfo.InvariantCulture;
 
+        private long x = 420;
+        
         public override void Run(UserConsole userConsole, Storage storage)
         {
-            var x = 420L;
             while (true)
             {
                 var input = userConsole.ReadLine();

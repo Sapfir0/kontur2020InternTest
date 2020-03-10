@@ -14,13 +14,15 @@ namespace CommandLineCalculator
     {
         protected UserConsole userConsole;
         protected Storage storage;
-        public Datas data;
+        public Datas data = new Datas();
         
         public MyConsole(Storage storage, UserConsole userConsole) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
-            this.data = Deserialize(); // если выделять нью каждый раз при вызове конструткора, то будет работать толлько для первого исключения
+            /*this.data = Deserialize(); // если выделять нью каждый раз при вызове конструткора, то будет работать толлько для первого исключения
+            this.data.lastInputCommand = 0;
+            this.data.lastOutputCommand = 0;*/
         }
 
         public void Serialize(Datas localData)
@@ -65,7 +67,6 @@ namespace CommandLineCalculator
             if (storageData.lastOutputCommand != data.lastOutputCommand)
             {
                 data = storageData;
-                //data.lastOutputCommand++;
                 userConsole.WriteLine(storageData.outputCommands[storageData.lastOutputCommand-1]);
                 Serialize(data);
             }
@@ -78,7 +79,6 @@ namespace CommandLineCalculator
             }
             
             
-            data = Deserialize();
 
         }
 
@@ -91,12 +91,15 @@ namespace CommandLineCalculator
                 data.lastInputCommand++;
                 if (data.lastInputCommand <= storageData.lastInputCommand)
                 {
-                    return storageData.inputCommands[data.lastInputCommand-1];
+                    line = storageData.inputCommands[data.lastInputCommand - 1];
+
+                    return line;
                 }
             }
             else
             {
                 line = userConsole.ReadLine();
+                
                 data.inputCommands.Add(line);
 
                 //допустим, что уже ничего плохого не произойдет
@@ -119,7 +122,8 @@ namespace CommandLineCalculator
         public List<string> outputCommands = new List<string>();
         public int lastInputCommand = 0;
         public int lastOutputCommand = 0;
-        
+        public long x;
+
     }
     
     public sealed class StatefulInterpreter : Interpreter
@@ -130,7 +134,7 @@ namespace CommandLineCalculator
         {
             var x = 420L;
 
-            var myConsole = new MyConsole(storage, userConsole); // изменил тут когда все проходило12
+            var myConsole = new MyConsole(storage, userConsole); 
             
             while (true)
             {
@@ -150,20 +154,13 @@ namespace CommandLineCalculator
                         Help(myConsole);
                         break;
                     case "rand":
-                        myConsole.data.inputCommands.Add(x.ToString()); // изменил тут когда все проходило1
+                        //myConsole.data.x = x;
                         x = Random(myConsole, x);
                         break;
                     default:
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
                         break;
                 }
-                
-                /*myConsole.data.inputCommands.Clear();
-                myConsole.data.outputCommands.Clear();
-                myConsole.data.lastInputCommand = 0;
-                myConsole.data.lastOutputCommand = 0;
-                myConsole.Serialize(myConsole.data);*/
-                
             }
         }
 
