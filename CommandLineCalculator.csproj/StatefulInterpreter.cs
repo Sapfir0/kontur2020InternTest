@@ -14,15 +14,15 @@ namespace CommandLineCalculator
     {
         protected UserConsole userConsole;
         protected Storage storage;
-        public Datas data = new Datas();
+        public Datas data;
         
         public MyConsole(Storage storage, UserConsole userConsole) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
-            /*this.data = Deserialize(); // если выделять нью каждый раз при вызове конструткора, то будет работать толлько для первого исключения
-            this.data.lastInputCommand = 0;
-            this.data.lastOutputCommand = 0;*/
+            data = new Datas();
+
+            
         }
 
         public void Serialize(Datas localData)
@@ -62,12 +62,12 @@ namespace CommandLineCalculator
         
         public override void WriteLine(string content)
         {
-
             var storageData = Deserialize();
             if (storageData.lastOutputCommand != data.lastOutputCommand)
             {
                 data = storageData;
-                userConsole.WriteLine(storageData.outputCommands[storageData.lastOutputCommand-1]);
+                userConsole.WriteLine(storageData.outputCommands[data.lastOutputCommand-1]);
+                data.outputCommands.Add(storageData.outputCommands[data.lastOutputCommand-1]);
                 Serialize(data);
             }
             else
@@ -92,8 +92,7 @@ namespace CommandLineCalculator
                 if (data.lastInputCommand <= storageData.lastInputCommand)
                 {
                     line = storageData.inputCommands[data.lastInputCommand - 1];
-
-                    return line;
+                    data.inputCommands.Add(line);
                 }
             }
             else
@@ -102,11 +101,10 @@ namespace CommandLineCalculator
                 
                 data.inputCommands.Add(line);
 
-                //допустим, что уже ничего плохого не произойдет
+                // уже ничего плохого не произойдет
                 data.lastInputCommand++;
                 Serialize(data);
             }
-
 
         
             return line;

@@ -44,6 +44,7 @@
     <Compile Include="Storage.cs" />
     <Compile Include="Tests\BrokenConsole.cs" />
     <Compile Include="Tests\MemoryStorage.cs" />
+    <Compile Include="Tests\StatefulInterpreterMust.cs" />
     <Compile Include="Tests\StatefulInterpreterShould.cs" />
     <Compile Include="Tests\TestConsole.cs" />
     <Compile Include="Tests\TestException.cs" />
