@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using CommandLineCalculator.Tests;
 
 namespace CommandLineCalculator
 {
@@ -16,13 +17,15 @@ namespace CommandLineCalculator
         protected Storage storage;
         public Datas data;
         
+        public int lastInputCommand = 0;
+        public int lastOutputCommand = 0;
+        public long x = 420;
+        
         public MyConsole(Storage storage, UserConsole userConsole) : base()
         {
             this.userConsole = userConsole;
             this.storage = storage;
-            data = new Datas();
-
-            
+            data = Deserialize();
         }
 
         public void Serialize(Datas localData)
@@ -62,38 +65,28 @@ namespace CommandLineCalculator
         
         public override void WriteLine(string content)
         {
-            var storageData = Deserialize();
-            if (storageData.lastOutputCommand != data.lastOutputCommand)
+            if (lastOutputCommand < data.lastOutputCommand)
             {
-                data = storageData;
-                userConsole.WriteLine(storageData.outputCommands[data.lastOutputCommand-1]);
-                data.outputCommands.Add(storageData.outputCommands[data.lastOutputCommand-1]);
-                Serialize(data);
+                lastOutputCommand++;
             }
             else
             {
+                userConsole.WriteLine(content);
                 data.outputCommands.Add(content);
                 data.lastOutputCommand++;
-                userConsole.WriteLine(content);
+                lastOutputCommand++;
                 Serialize(data);
             }
-            
-            
-
         }
 
         public override string ReadLine()
         {
-            string line = "its a nullable";
-            var storageData = Deserialize();
-            if (storageData.lastInputCommand != data.lastInputCommand) //нужно эмулировать считивание
+            string line;
+
+            if (lastInputCommand < data.lastInputCommand) //нужно эмулировать считивание
             {
-                data.lastInputCommand++;
-                if (data.lastInputCommand <= storageData.lastInputCommand)
-                {
-                    line = storageData.inputCommands[data.lastInputCommand - 1];
-                    data.inputCommands.Add(line);
-                }
+                line = data.inputCommands[lastInputCommand];
+                lastInputCommand++;
             }
             else
             {
@@ -103,10 +96,9 @@ namespace CommandLineCalculator
 
                 // уже ничего плохого не произойдет
                 data.lastInputCommand++;
+                lastInputCommand++;
                 Serialize(data);
             }
-
-        
             return line;
 
         }
@@ -120,7 +112,6 @@ namespace CommandLineCalculator
         public List<string> outputCommands = new List<string>();
         public int lastInputCommand = 0;
         public int lastOutputCommand = 0;
-        public long x;
 
     }
     
@@ -130,7 +121,6 @@ namespace CommandLineCalculator
         
         public override void Run(UserConsole userConsole, Storage storage)
         {
-            var x = 420L;
 
             var myConsole = new MyConsole(storage, userConsole); 
             
@@ -141,6 +131,7 @@ namespace CommandLineCalculator
                 switch (input.Trim())
                 {
                     case "exit":
+                        myConsole.x = 420;
                         return;
                     case "add":
                         Add(myConsole);
@@ -152,13 +143,16 @@ namespace CommandLineCalculator
                         Help(myConsole);
                         break;
                     case "rand":
-                        //myConsole.data.x = x;
-                        x = Random(myConsole, x);
+                        myConsole.x = Random(myConsole, myConsole.x);
                         break;
                     default:
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
                         break;
                 }
+                myConsole.data = new Datas();
+                myConsole.lastInputCommand = 0;
+                myConsole.lastOutputCommand = 0;
+                myConsole.Serialize(new Datas());
             }
         }
 

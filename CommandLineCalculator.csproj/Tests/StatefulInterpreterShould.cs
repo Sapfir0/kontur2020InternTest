@@ -326,6 +326,7 @@ namespace CommandLineCalculator.Tests
             var stateless = new StatelessInterpreter();
             var commands = new[] {"add", "median", "help", "rand"};
             var random = new Random();
+            
             for (var i = 0; i < testsCount; ++i)
             {
                 var command = commands[random.Next(commands.Length)];
@@ -437,6 +438,7 @@ namespace CommandLineCalculator.Tests
             }
             actionConsoleList.Add((Read, "exit"));
             
+            
             var brokeSchedule = Enumerable.Range(0, actionConsoleList.Count).Where(i => i % 3 == 0).ToArray();
             var stateful = new StatefulInterpreter();
             var console = new TestConsole(actionConsoleList.ToArray());
@@ -450,6 +452,10 @@ namespace CommandLineCalculator.Tests
                     var interpreter = new StatefulInterpreter();
                     interpreter.Run(brokenConsole, storage);
                 });
+                if (exception.Type != TestException.ExceptionType.InducedFailure)
+                {
+                    var foo = 0;
+                }
                 exception.Type.Should().Be(TestException.ExceptionType.InducedFailure);
             }
             
