@@ -324,7 +324,7 @@ namespace CommandLineCalculator.Tests
             const int testsCount = 1000;
             var actionConsoleList = new List<(TestConsole.Action Action, string Value)>(testsCount * 5);
             var stateless = new StatelessInterpreter();
-            var commands = new[] {"add", "median", "help", "rand"};
+            var commands = new[] {"rand"};
             var random = new Random();
             
             for (var i = 0; i < testsCount; ++i)
@@ -338,87 +338,6 @@ namespace CommandLineCalculator.Tests
                 currentInput.AppendLine(command);
                 switch (command)
                 {
-                    case "add":
-                    {
-                        var first = random.Next();
-                        var second = random.Next();
-
-                        actionConsoleList.Add((Read, first.ToString().Trim()));
-                        actionConsoleList.Add((Read, second.ToString().Trim()));
-                        
-                        currentInput.AppendLine(first.ToString().Trim());
-                        currentInput.AppendLine(second.ToString().Trim());
-                        currentInput.AppendLine("exit");
-                        stateless.Run(new TextUserConsole(new StringReader(currentInput.ToString()), currentOutput),
-                            new MemoryStorage());
-
-                        actionConsoleList.AddRange(currentOutput.ToString().Split('\n')
-                            .Where(line => line.Length != 0)
-                            .Select(line => (Write, line.Trim())));
-                        break;
-                    }
-                    case "median":
-                    {
-                        var count = random.Next(100);
-                        var list = new List<int>(count);
-                        for (var _ = 0; _ < count; ++_)
-                        {
-                            list.Add(random.Next());
-                        }
-
-                        actionConsoleList.Add((Read, count.ToString()));
-                        actionConsoleList.AddRange(list.Select(i1 => (Read, i1.ToString())));
-                        currentInput.AppendLine(count.ToString());
-                        
-                        foreach (var i1 in list)
-                        {
-                            currentInput.AppendLine(i1.ToString());
-                        }
-                        currentInput.AppendLine("exit");
-                        stateless.Run(new TextUserConsole(new StringReader(currentInput.ToString()), currentOutput),
-                            new MemoryStorage());
-                        actionConsoleList.AddRange(currentOutput.ToString().Split('\n')
-                            .Where(line => line.Length != 0)
-                            .Select(line => (Write, line.Trim())));
-                        break;
-                    }
-                    case "help":
-                    {
-                        var helpCommandCount = random.Next(5);
-                        var helpCommands = new[] {"add", "median", "rand", "wrong-command"};
-
-                        actionConsoleList.Add((Write, "Укажите команду, для которой хотите посмотреть помощь"));
-                        actionConsoleList.Add((Write, "Доступные команды: add, median, rand"));
-                        actionConsoleList.Add((Write, "Чтобы выйти из режима помощи введите end"));
-
-                        for (var j = 0; j < helpCommandCount; ++j)
-                        {
-                            var currentCommand = helpCommands[random.Next(helpCommands.Length)];
-                            actionConsoleList.Add((Read, currentCommand));
-                            switch (currentCommand.Trim())
-                            {
-                                case "add":
-                                    actionConsoleList.Add((Write, "Вычисляет сумму двух чисел"));
-                                    actionConsoleList.Add((Write, "Чтобы выйти из режима помощи введите end"));
-                                    break;
-                                case "median":
-                                    actionConsoleList.Add((Write, "Вычисляет медиану списка чисел"));
-                                    actionConsoleList.Add((Write, "Чтобы выйти из режима помощи введите end"));
-                                    break;
-                                case "rand":
-                                    actionConsoleList.Add((Write, "Генерирует список случайных чисел"));
-                                    actionConsoleList.Add((Write, "Чтобы выйти из режима помощи введите end"));
-                                    break;
-                                default:
-                                    actionConsoleList.Add((Write, "Такой команды нет"));
-                                    actionConsoleList.Add((Write, "Доступные команды: add, median, rand"));
-                                    actionConsoleList.Add((Write, "Чтобы выйти из режима помощи введите end"));
-                                    break;
-                            }
-                        }
-                        actionConsoleList.Add((Read, "end"));
-                        break;
-                    }
                     case "rand":
                     {
                         var count = random.Next(100);

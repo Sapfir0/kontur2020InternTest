@@ -19,7 +19,6 @@ namespace CommandLineCalculator
         
         public int lastInputCommand = 0;
         public int lastOutputCommand = 0;
-        public long x = 420;
         
         public MyConsole(Storage storage, UserConsole userConsole) : base()
         {
@@ -112,6 +111,8 @@ namespace CommandLineCalculator
         public List<string> outputCommands = new List<string>();
         public int lastInputCommand = 0;
         public int lastOutputCommand = 0;
+        public long x = 420;
+
 
     }
     
@@ -131,7 +132,7 @@ namespace CommandLineCalculator
                 switch (input.Trim())
                 {
                     case "exit":
-                        myConsole.x = 420;
+                        myConsole.data.x = 420;
                         return;
                     case "add":
                         Add(myConsole);
@@ -143,7 +144,7 @@ namespace CommandLineCalculator
                         Help(myConsole);
                         break;
                     case "rand":
-                        myConsole.x = Random(myConsole, myConsole.x);
+                        myConsole.data.x = Random(myConsole, myConsole.data.x);
                         break;
                     default:
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
@@ -152,7 +153,8 @@ namespace CommandLineCalculator
                 myConsole.data = new Datas();
                 myConsole.lastInputCommand = 0;
                 myConsole.lastOutputCommand = 0;
-                myConsole.Serialize(new Datas());
+                myConsole.data.x = 0;
+                myConsole.Serialize(myConsole.data);
             }
         }
 
