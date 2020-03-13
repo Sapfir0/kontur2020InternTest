@@ -7,7 +7,7 @@ namespace Refactoring
     public class RemoteController
     {
         public Dictionary<String, int?> currentSettings = new Dictionary<string, int?>();
-        public int volume = 1;
+        public int volume = 30;
         public bool isOnline = false;
         private OptionsShower _optionsShower;
 
@@ -15,7 +15,7 @@ namespace Refactoring
         {
             _optionsShower = new OptionsShower(this);
             currentSettings.Add("brightness", 30);
-            currentSettings.Add("contrast", 10);
+            currentSettings.Add("contrast", 30);
         }
 
         public string Call(String command)

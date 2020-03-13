@@ -30,36 +30,22 @@ namespace CommandLineCalculator
         public void Serialize(Datas localData)
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            try
-            {
-                using var stream = new MemoryStream();
-                formatter.Serialize(stream, localData);
-                storage.Write(stream.GetBuffer());
-            }
-            catch (SerializationException e) 
-            {
-                Console.WriteLine("Failed to serialize. Reason: " + e.Message);
-                throw;
-            }
-            
+  
+            using var stream = new MemoryStream();
+            formatter.Serialize(stream, localData);
+            storage.Write(stream.GetBuffer());
         }
         public Datas Deserialize()
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            try
+
+            using var stream = new MemoryStream(storage.Read());
+            if (stream.Length == 0)
             {
-                using var stream = new MemoryStream(storage.Read());
-                if (stream.Length == 0)
-                {
-                    return new Datas();
-                }
-                return (Datas)formatter.Deserialize(stream);
+                return new Datas();
             }
-            catch (SerializationException e) 
-            {
-                Console.WriteLine("Failed to deserialize. Reason: " + e.Message);
-                throw;
-            }
+            return (Datas)formatter.Deserialize(stream);
+      
         }
         
         public override void WriteLine(string content)
@@ -150,10 +136,13 @@ namespace CommandLineCalculator
                         userConsole.WriteLine("Такой команды нет, используйте help для списка команд");
                         break;
                 }
+
+                long tempx = myConsole.data.x;
                 myConsole.data = new Datas();
                 myConsole.lastInputCommand = 0;
                 myConsole.lastOutputCommand = 0;
-                myConsole.data.x = 0;
+                myConsole.data.x = tempx;
+                
                 myConsole.Serialize(myConsole.data);
             }
         }
