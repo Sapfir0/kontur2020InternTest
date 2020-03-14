@@ -54,7 +54,6 @@ namespace ToDoList
         {
             var historyState = EntryState.Undone;
 
-
             // проверим, есть ли элемент с таким айдишником
             if (enrtySet.Where(x => x.Id == entryId).ToList().Count == 1) //не должно быть больше 1
             {
@@ -66,26 +65,31 @@ namespace ToDoList
                     var el = history[entryId].Where(x => x.timestamp == timestamp).ToList();
                     //го пока проанализируем первый, если не зайдет, будем думать
                     var historyElement = el[0];
-                    switch (historyElement.operation)
+
+                    if (historyElement.operation == "rename" || historyElement.operation == "add")
                     {
-                        case "rename":
-                            if (userId < metaelement.userId)
-                            {
-                                enrtySet[index] = new Entry(element.Id, name, element.State);
-                            }
-                            break;
-                        case "add":
-                            if (userId < metaelement.userId)
-                            {
-                                enrtySet[index] = new Entry(element.Id, name, element.State);
-                            }
-                            break;
+                        if (userId < metaelement.userId)
+                        {
+                            enrtySet[index] = new Entry(element.Id, name, element.State);
+                        }
                     }
+                }
+                else if (metaelement.timestamp < timestamp) // а теперь посмотрим, может были изменения раньше по времени
+                {
+                    enrtySet[index] = new Entry(element.Id, name, element.State);
+
                 }
                 
             }
-            else
+            else 
             {
+                history.TryGetValue(entryId, out var existedMarkDone);
+                if (existedMarkDone != null) // обрабатываем ситуацию, когда произошли какие-то изменения над списком, когда не был вызван
+                {
+                    var state = existedMarkDone.LastOrDefault(x => x.operation == "done");
+                    historyState = EntryState.Done;
+                }
+        
                 AddToEntryList(entryId, userId, name, timestamp, historyState);
             }
 
@@ -112,13 +116,9 @@ namespace ToDoList
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
                 var metaelement = db[index];
-                if (metaelement.timestamp == timestamp) // а с таким же таймстемпом
+                if (metaelement.timestamp <= timestamp) // а с таким же таймстемпом
                 {
                     RemoveFromEntryList(index); // преимущество удаления
-                }
-                else if (metaelement.timestamp < timestamp)
-                {
-                    RemoveFromEntryList(index);
                 }
             }
 
@@ -129,7 +129,24 @@ namespace ToDoList
 
         public void MarkDone(int entryId, int userId, long timestamp)
         {            
-            
+            // проверим, есть ли элемент с таким айдишником
+            if (enrtySet.Where(x => x.Id == entryId).ToList().Count == 1) //не должно быть больше 1
+            {                
+                var index = IndexOfElement(entryId);
+                var element = enrtySet[index];
+                var metaelement = db[index];
+                if (metaelement.timestamp <= timestamp) // а с таким же таймстемпом
+                {
+                    enrtySet[index] = element.MarkDone();
+                }
+                else //скорее всего неверно
+                {
+                    enrtySet[index] = element.MarkDone();
+
+                }
+
+            }
+            // а если нет, то порешаем потом при доабавлении этого жлемента
             HistoryAdd("done", entryId, userId, timestamp);
 
         }
