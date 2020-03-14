@@ -90,7 +90,7 @@ namespace ToDoList
                     history.TryGetValue(entryId, out var existedMarkDone);
                     if (existedMarkDone != null) // обрабатываем ситуацию, когда произошли какие-то изменения над списком, когда не был вызван
                     {
-                        var state = existedMarkDone.LastOrDefault(x => x.operation == "done");
+                        var state = existedMarkDone.LastOrDefault(x => x.operation == "done" || x.operation == "remove");
                         historyState = state.state;
                     }
             
@@ -202,7 +202,39 @@ namespace ToDoList
         public void AllowUser(int userId)
         {
             dismissedUsers.Remove(userId);
+            foreach (var historyList in history)
+            {
+                for (int i = 0; i < historyList.Value.Count; i++)
+                {
+                    if (historyList.Value[i].userId == userId)
+                    {
+                        if (historyList.Value[i].operation == "add")
+                        {
+                            var elem = historyList.Value[i];
+                            AddToEntryList(historyList.Key, elem.userId, elem.name, elem.timestamp, elem.state);
+ 
+                        }
+                        else if (historyList.Value[i].operation == "done" 
+                                 || historyList.Value[i].operation == "undone" 
+                                 || historyList.Value[i].operation == "rename")
+                        {
 
+                        }
+                        for (int j = 0; j < historyList.Value.Count ; j++) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
+                        {
+                            //if (historyList.Value[j].userId == userId)
+                            //{
+                                var elem = historyList.Value[j];
+                                enrtySet[enrtySet.Count-1] = new Entry(historyList.Key, elem.name, elem.state); // TODO он не всегда будет последним скорее всего
+                                db[enrtySet.Count-1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
+                                
+                            //}
+                        }
+                    }
+             
+                    
+                }
+            }
         }
 
         public bool IsThisInHistory(int id)
