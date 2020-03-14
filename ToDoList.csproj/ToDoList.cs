@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,14 +6,14 @@ namespace ToDoList
 {
     public class ToDoList : IToDoList
     {
-
         List<int> dismissedUsers = new List<int>(); // если юзер в списке, то мы не отображаем все что было сделагно им
+
         public class Datas
         {
             public int entryId; // айдишник тупа
             public long timestamp;
             public int userId; // юзер последнего изменившего
-            
+
             public Datas(int entryId, int userId, long timestamp)
             {
                 this.timestamp = timestamp;
@@ -22,7 +21,7 @@ namespace ToDoList
                 this.userId = userId;
             }
         }
-        
+
         public class History
         {
             public string operation;
@@ -40,13 +39,12 @@ namespace ToDoList
                 this.name = name;
             }
         }
-        
+
         List<Entry> enrtySet = new List<Entry>();
         List<Datas> db = new List<Datas>();
 
         private Dictionary<int, List<History>> history = new Dictionary<int, List<History>>();
-        
-        
+
 
         public void AddEntry(int entryId, int userId, string name, long timestamp)
         {
@@ -55,40 +53,31 @@ namespace ToDoList
             if (HasUserAccess(userId))
             {
                 // проверим, есть ли элемент с таким айдишником
-                if (IsElementWithIdExists(entryId)) 
+                if (IsElementWithIdExists(entryId))
                 {
                     var index = IndexOfElement(entryId);
                     var element = enrtySet[index];
                     var metaelement = db[index];
-                    if (metaelement.timestamp == timestamp) // а с таким же таймстемпом
-                    {
-                        var el = history[entryId].Where(x => x.timestamp == timestamp).ToList();
-                        //го пока проанализируем первый, если не зайдет, будем думать
-                        var historyElement = el[0];
-
-                        if (historyElement.operation == "rename" || historyElement.operation == "add")
-                        {
-                            if (userId < metaelement.userId)
-                            {
-                                enrtySet[index] = new Entry(element.Id, name, element.State);
-                            }
-                        }
-                    }
-                    else if (metaelement.timestamp < timestamp) // а теперь посмотрим, может были изменения раньше по времени
+                    if (userId < metaelement.userId && metaelement.timestamp == timestamp) // а с таким же таймстемпом
                     {
                         enrtySet[index] = new Entry(element.Id, name, element.State);
-
                     }
-                    
+                    else if (metaelement.timestamp < timestamp
+                    ) // а теперь посмотрим, может были изменения раньше по времени
+                    {
+                        enrtySet[index] = new Entry(element.Id, name, element.State);
+                    }
                 }
-                else 
+                else
                 {
                     // а тут нужно сделать запрос и проверить, был ли удален коммит с таким же айдишником
-                    
+
                     history.TryGetValue(entryId, out var existedMarkDone);
-                    if (existedMarkDone != null) // обрабатываем ситуацию, когда произошли какие-то изменения над списком, когда не был вызван
+                    if (existedMarkDone != null
+                    ) // обрабатываем ситуацию, когда произошли какие-то изменения над списком, когда не был вызван
                     {
-                        var state = existedMarkDone.LastOrDefault(x => x.operation == "done" || x.operation == "remove");
+                        var state = existedMarkDone.LastOrDefault(x =>
+                            x.operation == "done" || x.operation == "remove");
                         historyState = state.state;
 
                         var removes = existedMarkDone.FindLast(x => x.operation == "remove");
@@ -96,22 +85,20 @@ namespace ToDoList
                         {
                             return;
                         }
-                        // TODO тупой костыль для даунов
+
+                        // TODO тупой костыль
                         if (existedMarkDone[0].operation == "done")
                         {
                             historyState = EntryState.Done;
                         }
-                        
                     }
 
 
-
-                    
                     AddToEntryList(entryId, userId, name, timestamp, historyState);
                     historyState = EntryState.Undone;
                 }
-
             }
+
             if (history.ContainsKey(entryId))
             {
                 HistoryAdd("rename", entryId, userId, timestamp, name, historyState);
@@ -120,7 +107,6 @@ namespace ToDoList
             {
                 HistoryAdd("add", entryId, userId, timestamp, name, historyState);
             }
-
         }
 
 
@@ -128,11 +114,13 @@ namespace ToDoList
             => enrtySet.Where(x => x.Id == entryId).ToList().Count == 1; //мне кажется не оч
 
 
-        public void RemoveEntry(int entryId, int userId, long timestamp) // TODO будет большая проблема, т.к. я восстаналиваю значения с remove 
+        public void
+            RemoveEntry(int entryId, int userId,
+                long timestamp) // TODO будет большая проблема, т.к. я восстаналиваю значения с remove 
         {
             // проверим, есть ли элемент с таким айдишником
-            if (IsElementWithIdExists(entryId)) 
-            {                
+            if (IsElementWithIdExists(entryId))
+            {
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
                 var metaelement = db[index];
@@ -145,42 +133,42 @@ namespace ToDoList
             HistoryAdd("remove", entryId, userId, timestamp);
         }
 
-        
 
         public void MarkDone(int entryId, int userId, long timestamp)
-        {             
+        {
             // проверим, есть ли элемент с таким айдишником
-            if (IsElementWithIdExists(entryId)) 
-            {                
+            if (IsElementWithIdExists(entryId))
+            {
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
-                
+
                 enrtySet[index] = element.MarkDone();
             }
+
             // а если нет, то порешаем потом при доабавлении этого элемента
             HistoryAdd("done", entryId, userId, timestamp, state: EntryState.Done);
-
         }
 
         public void MarkUndone(int entryId, int userId, long timestamp)
         {
-            if (IsElementWithIdExists(entryId)) 
-            {                
+            if (IsElementWithIdExists(entryId))
+            {
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
 
                 // был ли элемент с большим таймстемпом с операцией markdone? если был, то ничего не делаем
-                var f = history[entryId].LastOrDefault(x => x.operation == "done" && x.timestamp > timestamp); //просто больше, т.к. доминация андана
+                var f = history[entryId]
+                    .LastOrDefault(x =>
+                        x.operation == "done" && x.timestamp > timestamp); //просто больше, т.к. доминация андана
                 if (f is null)
                 {
                     enrtySet[index] = element.MarkUndone();
-
                 }
             }
-            HistoryAdd("undone", entryId, userId, timestamp,  state: EntryState.Undone);
 
+            HistoryAdd("undone", entryId, userId, timestamp, state: EntryState.Undone);
         }
-        
+
 
         public void DismissUser(int userId)
         {
@@ -194,28 +182,30 @@ namespace ToDoList
                         {
                             RemoveFromEntryList(i);
                         }
-                        else if (historyList.Value[i].operation == "done" 
-                                 || historyList.Value[i].operation == "undone" 
+                        else if (historyList.Value[i].operation == "done"
+                                 || historyList.Value[i].operation == "undone"
                                  || historyList.Value[i].operation == "rename")
                         {
-                            for (int j = historyList.Value.Count-1; j >= 0 ; j--) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
+                            for (int j = historyList.Value.Count - 1;
+                                j >= 0;
+                                j--) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
                             {
                                 if (historyList.Value[j].userId != userId)
                                 {
                                     var elem = historyList.Value[j];
-                                    enrtySet[enrtySet.Count-1] = new Entry(historyList.Key, elem.name, elem.state); // TODO он не всегда будет последним скорее всего
-                                    db[enrtySet.Count-1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
+                                    enrtySet[enrtySet.Count - 1] =
+                                        new Entry(historyList.Key, elem.name,
+                                            elem.state); // TODO он не всегда будет последним скорее всего
+                                    db[enrtySet.Count - 1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
                                     break; // TODO неверно априори 
                                 }
                             }
                         }
                     }
-             
-                    
                 }
             }
+
             dismissedUsers.Add(userId);
-            
         }
 
         public void AllowUser(int userId)
@@ -233,20 +223,24 @@ namespace ToDoList
                             AddToEntryList(historyList.Key, elem.userId, elem.name, elem.timestamp, elem.state);
                         }
 
-                        for (int j = 0; j < historyList.Value.Count ; j++) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
+                        for (int j = 0;
+                            j < historyList.Value.Count;
+                            j++) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
                         {
                             var elem = historyList.Value[j];
-                            enrtySet[enrtySet.Count-1] = new Entry(historyList.Key, elem.name, elem.state); // TODO он не всегда будет последним скорее всего
-                            db[enrtySet.Count-1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
+                            enrtySet[enrtySet.Count - 1] =
+                                new Entry(historyList.Key, elem.name,
+                                    elem.state); // TODO он не всегда будет последним скорее всего
+                            db[enrtySet.Count - 1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
                         }
                     }
-                    
                 }
             }
         }
 
-        
-        public void HistoryAdd(string operation, int entryId, int userId, long timestamp, string name=" ", EntryState? state=null)//
+
+        public void HistoryAdd(string operation, int entryId, int userId, long timestamp, string name = " ",
+            EntryState? state = null) //
         {
             if (name == " ")
             {
@@ -271,7 +265,7 @@ namespace ToDoList
             }
 
             var fixedState = (EntryState) state;
-            
+
             var currentAction = new History(operation, timestamp, userId, fixedState, name);
 
 
@@ -287,17 +281,16 @@ namespace ToDoList
                         isInserted = true;
                         InsertBefore(entryId, i, currentAction);
                         break;
-                        
                     }
                 }
-                
-                
+
+
                 // теперь правим ремув, если возможно, т.е. если дальше по таймтемпам что-то произошло, но фактичски вызов был раньше, и в ремув не до записались параметры
                 // ставлю что этот блок приведет к ошибке, 
                 if (historyList.Where(x => x.operation == "remove").ToList().Count == 1)
                 {
                     var fixRemove = history[entryId].LastOrDefault(x => x.operation == "remove");
-                    fixRemove.state = (EntryState)state;
+                    fixRemove.state = (EntryState) state;
                 }
 
                 if (!isInserted)
@@ -310,27 +303,25 @@ namespace ToDoList
                 history.Add(entryId, new List<History>());
                 history[entryId].Add(currentAction);
             }
-            
         }
 
 
         public IEnumerator<Entry> GetEnumerator()
-            =>  enrtySet.Take(enrtySet.Count).GetEnumerator();
+            => enrtySet.Take(enrtySet.Count).GetEnumerator();
 
-        
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        
+
         public bool HasUserAccess(int userId)
         {
             return !dismissedUsers.Contains(userId);
         }
 
         public int Count { get; set; }
-        
+
         public int IndexOfElement(int entryId)
             => enrtySet.IndexOf(enrtySet.Where(entry => entry.Id == entryId).FirstOrDefault());
-        
+
         public void AddToEntryList(int entryId, int userId, string name, long timestamp, EntryState state)
         {
             enrtySet.Add(new Entry(entryId, name, state));
@@ -345,11 +336,11 @@ namespace ToDoList
             Count--;
         }
 
-        
+
         void InsertBefore(int entryCode, int myindex, History action)
         {
             history[entryCode].Add(action);
-            for (int i = history[entryCode].Count -1; i > myindex ; i--)
+            for (int i = history[entryCode].Count - 1; i > myindex; i--)
             {
                 history[entryCode][i] = history[entryCode][i - 1];
             }
