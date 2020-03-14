@@ -154,7 +154,7 @@ namespace ToDoList
         }
 
         [Test]
-        public void DissmissCreation()
+        public void DissmissBeforeCreation()
         {
             list.DismissUser(userA);
             list.AddEntry(10, userA, "MyCase", 100);
@@ -173,7 +173,7 @@ namespace ToDoList
         }
         
         [Test]
-        public void Dissy()
+        public void MarkDoneAfterRemove()
         {
             list.AddEntry(10, userA, "MyCase", 100);
             list.MarkDone(10, userA, 101);
@@ -181,7 +181,7 @@ namespace ToDoList
             list.AddEntry(10, userA, "MyCase", 104);
 
 
-            AssertEntries(Entry.Undone(10, "MyCase"));
+            AssertEntries(Entry.Done(10, "MyCase"));
         }
 
         [Test]
