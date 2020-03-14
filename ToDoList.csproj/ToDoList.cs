@@ -14,7 +14,6 @@ namespace ToDoList
             public int entryId; // айдишник тупа
             public long timestamp;
             public int userId; // юзер последнего изменившего
-            public int authorId;
             
             public Datas(int entryId, int userId, long timestamp)
             {
@@ -31,7 +30,6 @@ namespace ToDoList
             public int userId;
             public EntryState state;
             public string name;
-            public int authorId;
 
             public History(string operation, long timestamp, int userId, EntryState state, string name)
             {
@@ -92,6 +90,12 @@ namespace ToDoList
                     {
                         var state = existedMarkDone.LastOrDefault(x => x.operation == "done" || x.operation == "remove");
                         historyState = state.state;
+                        // TODO тупой костыль для даунов
+                        if (existedMarkDone[0].operation == "done")
+                        {
+                            historyState = EntryState.Done;
+                        }
+                        
                     }
             
                     AddToEntryList(entryId, userId, name, timestamp, historyState);
@@ -245,10 +249,15 @@ namespace ToDoList
                 {
                     state = histValue.ToList().LastOrDefault().state;
                 }
+                else
+                {
+                    state = EntryState.Undone;
+                }
             }
+
+            var fixedState = (EntryState) state;
             
-                
-            var currentAction = new History(operation, timestamp, userId, (EntryState)state, name);
+            var currentAction = new History(operation, timestamp, userId, fixedState, name);
 
 
             if (history.TryGetValue(entryId, out List<History> historyList))
@@ -267,8 +276,9 @@ namespace ToDoList
                     }
                 }
                 
+                
                 // теперь правим ремув, если возможно, т.е. если дальше по таймтемпам что-то произошло, но фактичски вызов был раньше, и в ремув не до записались параметры
-
+                // ставлю что этот блок приведет к ошибке, 
                 if (historyList.Where(x => x.operation == "remove").ToList().Count == 1)
                 {
                     var fixRemove = history[entryId].LastOrDefault(x => x.operation == "remove");
