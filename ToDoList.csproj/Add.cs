@@ -71,6 +71,49 @@ namespace ToDoList
 
             AssertEntries(Entry.Done(42, "iv"));
         }
+
+        
+        [Test]
+        public void Mark_Done_After_Removal(
+            [Values(userA, userB, userC)] int removingUserId,
+            [Values(99, 101, 100)] long removingTimestamp)
+        {
+            list.AddEntry(10, removingUserId, "MyCase", 99);
+            list.RemoveEntry(10, removingUserId, removingTimestamp);
+            list.MarkDone(10, removingUserId, 99);
+
+            list.AddEntry(10, removingUserId, "MyCase", 104);
+            
+            AssertEntries(Entry.Done(10, "MyCase"));
+        } 
+        
+        
+        [Test]
+        public void Mark_Done_Before_Removal(
+            [Values(userA, userB, userC)] int removingUserId,
+            [Values(99, 101, 100)] long removingTimestamp)
+        {
+            list.MarkDone(10, removingUserId, 99);
+            list.AddEntry(10, removingUserId, "MyCase", 99);
+            list.RemoveEntry(10, removingUserId, removingTimestamp);
+
+            list.AddEntry(10, removingUserId, "MyCase", 104);
+            
+            AssertEntries(Entry.Done(10, "MyCase"));
+        } 
+        
+        [Test]
+        public void Mark_Undone_After_Removal()
+        {
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.MarkDone(10, userA, 101);
+            list.MarkUndone(10, userA, 102);
+            list.RemoveEntry(10, userA, 102);
+            list.AddEntry(10, userA, "MyCase", 104);
+            
+            AssertEntries(Entry.Undone(10, "MyCase"));
+        }
+        
         
         private void AssertListEmpty()
         {
@@ -83,6 +126,8 @@ namespace ToDoList
             list.Should().BeEquivalentTo(expected.AsEnumerable());
             list.Count.Should().Be(expected.Length);
         }
+        
+        
         
     }
 }

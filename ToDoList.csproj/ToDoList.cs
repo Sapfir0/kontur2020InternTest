@@ -115,7 +115,7 @@ namespace ToDoList
             => enrtySet.Where(x => x.Id == entryId).ToList().Count == 1; //мне кажется не оч
 
 
-        public void RemoveEntry(int entryId, int userId, long timestamp)
+        public void RemoveEntry(int entryId, int userId, long timestamp) // TODO будет большая проблема, т.к. я восстаналиваю значения с remove 
         {
             // проверим, есть ли элемент с таким айдишником
             if (IsElementWithIdExists(entryId)) 
@@ -212,35 +212,20 @@ namespace ToDoList
                         {
                             var elem = historyList.Value[i];
                             AddToEntryList(historyList.Key, elem.userId, elem.name, elem.timestamp, elem.state);
- 
                         }
-                        else if (historyList.Value[i].operation == "done" 
-                                 || historyList.Value[i].operation == "undone" 
-                                 || historyList.Value[i].operation == "rename")
-                        {
 
-                        }
                         for (int j = 0; j < historyList.Value.Count ; j++) // пробегаемся второй раз по всему списку изменений по этому айдишнику 
                         {
-                            //if (historyList.Value[j].userId == userId)
-                            //{
-                                var elem = historyList.Value[j];
-                                enrtySet[enrtySet.Count-1] = new Entry(historyList.Key, elem.name, elem.state); // TODO он не всегда будет последним скорее всего
-                                db[enrtySet.Count-1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
-                                
-                            //}
+                            var elem = historyList.Value[j];
+                            enrtySet[enrtySet.Count-1] = new Entry(historyList.Key, elem.name, elem.state); // TODO он не всегда будет последним скорее всего
+                            db[enrtySet.Count-1] = new Datas(historyList.Key, elem.userId, elem.timestamp);
                         }
                     }
-             
                     
                 }
             }
         }
 
-        public bool IsThisInHistory(int id)
-        {
-            return history.ContainsKey(id);
-        }
         
         public void HistoryAdd(string operation, int entryId, int userId, long timestamp, string name=" ", EntryState? state=null)//
         {
@@ -270,17 +255,24 @@ namespace ToDoList
             {
                 bool isInserted = false;
                 // теперь нам нужно инсертнуть в нужное место
-                for (int i = 0; i < history[entryId].Count; i++)
+                for (int i = 0; i < historyList.Count; i++)
                 {
-                    var historyTimestamp = history[entryId][i].timestamp;
+                    var historyTimestamp = historyList[i].timestamp;
                     if (historyTimestamp > timestamp)
                     {
                         isInserted = true;
                         InsertBefore(entryId, i, currentAction);
                         break;
-                    
-
+                        
                     }
+                }
+                
+                // теперь правим ремув, если возможно, т.е. если дальше по таймтемпам что-то произошло, но фактичски вызов был раньше, и в ремув не до записались параметры
+
+                if (historyList.Where(x => x.operation == "remove").ToList().Count == 1)
+                {
+                    var fixRemove = history[entryId].LastOrDefault(x => x.operation == "remove");
+                    fixRemove.state = (EntryState)state;
                 }
 
                 if (!isInserted)

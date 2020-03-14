@@ -51,7 +51,8 @@ namespace ToDoList
         }
 
         [Test]
-        public void Updates_Name_When_Entry_With_Greater_Timestamp_Added([Values(userA, userB, userC)] int updatingUserId)
+        public void Updates_Name_When_Entry_With_Greater_Timestamp_Added(
+            [Values(userA, userB, userC)] int updatingUserId)
         {
             list.AddEntry(42, userB, "Build project", 100);
 
