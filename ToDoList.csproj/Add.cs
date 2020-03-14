@@ -115,6 +115,72 @@ namespace ToDoList
         }
         
         
+        [Test]
+        public void  Not_Add_Item_When_It_Was_Removed_With_Greater_Timestamp(
+            [Values(userA, userB, userC)] int removingUserId,
+            [Values(200, 100, 203)] long removingTimestamp)
+        {
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.RemoveEntry(10, userA, 400);
+            list.AddEntry(10, userA, "MyCase", 104);
+            
+            AssertListEmpty();
+        }
+        
+        [Test]
+        public void MarkDoneAfterRemove()
+        {
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.MarkDone(10, userA, 101);
+            list.RemoveEntry(10, userA, 102);
+            list.AddEntry(10, userA, "MyCase", 104);
+
+
+            AssertEntries(Entry.Done(10, "MyCase"));
+        }
+        
+        [Test]
+        public void DissmissBeforeCreation()
+        {
+            list.DismissUser(userA);
+            list.AddEntry(10, userA, "MyCase", 100);
+
+            AssertListEmpty();
+        }
+        
+        [Test]
+        public void DissmissThanAllowCreation()
+        {
+            list.DismissUser(userA);
+            list.AddEntry(10, userA, "MyCase", 100);
+            list.AllowUser(userA);
+
+            AssertEntries(Entry.Undone(10, "MyCase"));
+        }
+        
+        [Test]
+        public void MyCase()
+        {
+            list.AddEntry(42, userA, "Introduce autotests0", 100);
+            list.AddEntry(42, userA, "Introduce autotests2", 120);
+            list.AddEntry(42, userA, "Introduce autotests3", 50);
+            list.AddEntry(42, userA, "Introduce autotests4", 50);
+            list.AddEntry(42, userA, "Introduce autotests5", 500);
+            list.AddEntry(42, userA, "Introduce autotests6", 110);
+            // мне лень писать ассерт
+        }
+        
+        [Test]
+        public void Not_Mark_Undone_When_Timestamp_Less_Than_Done_Mark_Timestamp()
+        {
+            list.AddEntry(42, userA, "iv", 100);
+            list.MarkDone(42, userB, 102);
+            list.MarkUndone(42, userB, 101);
+
+            AssertEntries(Entry.Done(42, "iv"));
+        }
+
+        
         private void AssertListEmpty()
         {
             list.Should().BeEmpty();

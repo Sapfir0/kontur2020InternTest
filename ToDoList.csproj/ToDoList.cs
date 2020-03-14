@@ -90,6 +90,12 @@ namespace ToDoList
                     {
                         var state = existedMarkDone.LastOrDefault(x => x.operation == "done" || x.operation == "remove");
                         historyState = state.state;
+
+                        var removes = existedMarkDone.FindLast(x => x.operation == "remove");
+                        if (removes != null && removes.timestamp >= timestamp)
+                        {
+                            return;
+                        }
                         // TODO тупой костыль для даунов
                         if (existedMarkDone[0].operation == "done")
                         {
@@ -97,7 +103,10 @@ namespace ToDoList
                         }
                         
                     }
-            
+
+
+
+                    
                     AddToEntryList(entryId, userId, name, timestamp, historyState);
                     historyState = EntryState.Undone;
                 }
@@ -139,13 +148,13 @@ namespace ToDoList
         
 
         public void MarkDone(int entryId, int userId, long timestamp)
-        {            
+        {             
             // проверим, есть ли элемент с таким айдишником
             if (IsElementWithIdExists(entryId)) 
             {                
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
-
+                
                 enrtySet[index] = element.MarkDone();
             }
             // а если нет, то порешаем потом при доабавлении этого элемента
@@ -160,7 +169,13 @@ namespace ToDoList
                 var index = IndexOfElement(entryId);
                 var element = enrtySet[index];
 
-                enrtySet[index] = element.MarkUndone();
+                // был ли элемент с большим таймстемпом с операцией markdone? если был, то ничего не делаем
+                var f = history[entryId].LastOrDefault(x => x.operation == "done" && x.timestamp > timestamp); //просто больше, т.к. доминация андана
+                if (f is null)
+                {
+                    enrtySet[index] = element.MarkUndone();
+
+                }
             }
             HistoryAdd("undone", entryId, userId, timestamp,  state: EntryState.Undone);
 
