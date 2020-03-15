@@ -223,45 +223,31 @@ namespace ToDoList
             if (name == " ")
             {
                 history.TryGetValue(entryId, out var histValue);
-                if (histValue != null)
-                {
-                    name = histValue.ToList().LastOrDefault().name;
-                }
+                name = histValue?.ToList().LastOrDefault()?.name;
             }
 
             if (state is null)
             {
                 history.TryGetValue(entryId, out var histValue);
-                if (histValue != null)
-                {
-                    state = histValue.ToList().LastOrDefault().state;
-                }
-                else
-                {
-                    state = EntryState.Undone;
-                }
+                state ??= histValue?.ToList().LastOrDefault()?.state ?? EntryState.Undone;
             }
-
             
             var fixedState = (EntryState) state;
-
             var currentAction = new History(operation, timestamp, userId, fixedState, name);
-
 
             if (history.TryGetValue(entryId, out List<History> historyList))
             {
-                bool isInserted = false;	
                 // теперь нам нужно инсертнуть в нужное место	
-                for (int i = 0; i < historyList.Count; i++)	
-                {	
-                    var historyTimestamp = historyList[i].timestamp;	
-                    if (historyTimestamp > timestamp)	
-                    {	
-                        isInserted = true;	
-                        InsertBefore(entryId, i, currentAction);	
-                        break;	
-                    }	
-                }	
+                var index = historyList.FindIndex(x => x.timestamp > timestamp);
+                if (index != -1)
+                {
+                    InsertBefore(entryId, index, currentAction);
+                }
+                else
+                {
+                    history[entryId].Add(currentAction);
+                }
+
                 // теперь правим ремув, если возможно, т.е. если дальше по таймтемпам что-то произошло, но фактичски вызов был раньше, и в ремув не до записались параметры	
                 // ставлю что этот блок приведет к ошибке, 	
                 if (historyList.Where(x => x.operation == Operations.Remove).ToList().Count == 1)	
@@ -269,12 +255,7 @@ namespace ToDoList
                     var fixRemove = history[entryId].LastOrDefault(x => x.operation == Operations.Remove);	
                     fixRemove.state = (EntryState) state;	
                 }	
-                if (!isInserted)	
-                {	
-                    history[entryId].Add(currentAction);	
-                }
                 
-
             }
             else
             {
