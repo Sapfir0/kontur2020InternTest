@@ -2,33 +2,80 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+
 
 namespace KizhiPart3 {
     public class MainClass {
         static int Main() {
             Debugger pult = new Debugger(new StringWriter());
-            pult.ExecuteLine(Console.ReadLine());
+            while (true)
+            {
+                pult.ExecuteLine(Console.ReadLine());
+            }
             return 0;
             
         }
     }
     
+            
+    public class VariableInfo
+    {
+        public int Value;
+        public int LastChangeInString;
+
+        public VariableInfo(int value, int lastChangeInString)
+        {
+            Value = value;
+            LastChangeInString = lastChangeInString;
+        }
+    }
+    public abstract class Command
+    {
+        public string Name;
+        public int RealLine;
+        
+    }
+    
+
+    public class Print : Command
+    {
+        public VariableInfo Variable;
+    }
+        
+        
+    public class Set : Command
+    {
+        public VariableInfo Variable;
+    }
+
+    public class Sub : Command
+    {
+        public VariableInfo Variable;
+        public int SubValue;
+        
+        
+    }
+        
+    public class Remove : Command
+    {
+        public VariableInfo Variable;
+
+    }
+    
     public class Debugger
     {
-        private TextWriter _writer;
+        public TextWriter _writer;
 
         public Debugger(TextWriter writer)
         {
             _writer = writer;
         }
 
-        Dictionary<string, int> storage = new Dictionary<string, int>(); // словарь для переменных
-        Dictionary<string, List<string>> functionList = new Dictionary<string, List<string>>(); //может быть сетом // тут будет название функции/команды внутри нее
-        public List<string> interpretComands = new List<string>(); // просто команды которые будем запускать
-        
-        bool thisIsCodeBlock = false;
 
+        public Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>(); // словарь для переменных
+        public Dictionary<string, List<CommandInfo>> functionList = new Dictionary<string, List<CommandInfo>>(); //может быть сетом // тут будет название функции/команды внутри нее
+        public List<CommandInfo> interpretComands = new List<CommandInfo>(); // просто команды которые будем запускать
+        
         private bool isRunning = false;
         
 
@@ -42,86 +89,48 @@ namespace KizhiPart3 {
             _writer.WriteLine(str);
             Console.WriteLine(str);
         }
-        
-        public void Print(string variableName)
-        {
-            if(storage.TryGetValue(variableName, out var ourVariable))
-            {
-                WriteToStream(ourVariable.ToString());
-            }
-            else
-            {
-                WriteNotFoundMessage();
-            }
-
-        }
-
-        public void Set(string variableName, int variableValue) 
-        {
-            try {
-                storage.Add(variableName, variableValue);
-            }
-            catch (ArgumentException e) {
-                storage[variableName] = variableValue; 
-            }
-        }
-        
-
-        public void Rem(string variableName) 
-        {
-            if (!storage.Remove(variableName)) 
-            {
-                WriteNotFoundMessage();
-            }
-        }
-        
-        public void Sub(string variableName, int subValue) 
-        {
-            try 
-            {
-                storage[variableName] -= subValue;
-            }
-            catch (KeyNotFoundException e) 
-            {
-                WriteNotFoundMessage();
-            }
-        }
 
 
-        public void ParseStringToDictionary(string code)
+        public void AddCommandToMemory(string code)
         {
             var commands = code.Split('\n').ToList();
+            var parsedCommands = new List<CommandInfo>();
+            for (int i=0; i<commands.Count; i++)
+            {
+                
+                parsedCommands.Add(new CommandInfo(commands[i], i));
+            }
             
             bool functionStart = false;
-            List<string> currentFunction = new List<string>();
+            List<CommandInfo> currentFunction = new List<CommandInfo>();
             string nameOfFunction = "none";
 
-            foreach (var command in commands)
+            foreach (var command in parsedCommands)
             {
                 if (functionStart)
                 {
-                    if (command.Contains("  "))
+                    if (command.Command.Contains("   "))
                     {
-                        currentFunction.Add(command.TrimStart());
+                        var item = new CommandInfo(command.Command.Trim(), command.RealLine);
+                        currentFunction.Add(item);
                     }
                     else
                     {
                         functionStart = false;
                         functionList.Add(nameOfFunction, currentFunction);
-                        //currentFunction.Clear();
                     }
                 }
                 
-                if (command.Contains("def"))
+                if (command.Command.Contains("def"))
                 {
-                    nameOfFunction = command.Split(' ')[1];
+                    nameOfFunction = command.Command.Split(' ')[1];
                     functionStart = true;
                 }
-                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
+                else if (command.Command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
                 {
-                    if (!command.Contains("   ")) // вызов вне функций
+                    if (!command.Command.Contains("   ")) // вызов вне функций
                     {              
-                        var nameOfCalledFunction = command.Split(' ')[1];
+                        var nameOfCalledFunction = command.Command.Split(' ')[1];
                         var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
                         if (calledFunc != null)
                         {
@@ -133,7 +142,7 @@ namespace KizhiPart3 {
                  
                     }
                 }
-                else if (!command.Contains("def") && !functionStart && command != "")
+                else if (!command.Command.Contains("def") && !functionStart && command.Command != "")
                 {
                     interpretComands.Add(command);
                 }
@@ -142,9 +151,9 @@ namespace KizhiPart3 {
         }
 
 
-        private List<string> GetFunctionCommandsByName(string name)
+        private List<CommandInfo> GetFunctionCommandsByName(string name)
         {
-            if (functionList.TryGetValue(name, out List<string> commands))
+            if (functionList.TryGetValue(name, out List<CommandInfo> commands))
             {
                 return commands;
             }
@@ -155,9 +164,9 @@ namespace KizhiPart3 {
             }
         }
 
-        public void ParseString(string blob) 
+        public void StartRunCommands(CommandInfo blob) 
         {
-            var parsedCommand = blob.Split(' ');
+            var parsedCommand = blob.Command.Split(' ');
             
             if (parsedCommand[0] == "call") // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
             {
@@ -166,18 +175,15 @@ namespace KizhiPart3 {
                     var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
                     foreach (var cmd in funcCommands)
                     {
-                        var parsedCmd = cmd.Split(' ');
+                        var parsedCmd = cmd.Command.Split(' ');
 
                         if (parsedCmd[0] != "call")
                         {
-                            if (parsedCmd.Length > 1)
+                            if (parsedCmd.Length == 2)
                             {
-                                Switch(parsedCmd[0], parsedCmd[1], parsedCmd[2]);
+                                Switch(parsedCmd[0]);
                             }
-                            else
-                            {
-                                Switch(parsedCmd[0], parsedCmd[1]);
-                            }
+
                             // не добавляем в очередь а сразу запускаем
                         }
                     }
@@ -194,70 +200,102 @@ namespace KizhiPart3 {
                 else if (parsedCommand.Length == 2)
                 {
                     Switch(parsedCommand[0], parsedCommand[1]);
-
                 }
             }
             
         }
 
-        public void Switch(string command, string variable, string value="0")
+        public void Switch(CommandInfo command, string variable, string value="0")
         {
-            switch (command)
+            switch (command.Command)
             {
                 case "set": 
                 {
-                    Set(variable, Int32.Parse(value));
+                    try {
+                        storage.Add(command.Command, new VariableInfo(variableValue, command.RealLine));
+                    }
+                    catch (ArgumentException e) {
+                        storage[command.Command].Value = variableValue; 
+                    }
                     break;
                 }
                 case "sub": 
                 {
-                    Sub(variable, Int32.Parse(value));
+                    try 
+                    {
+                        storage[variableName.Command].Value -= subValue;
+                    }
+                    catch (KeyNotFoundException e) 
+                    {
+                        WriteNotFoundMessage();
+                    }
                     break;
                 }
                 case "print": 
                 {
-                    Print(variable);
+                    if(storage.TryGetValue(variableName.Command, out var ourVariable))
+                    {
+                        WriteToStream(ourVariable.ToString());
+                    }
+                    else
+                    {
+                        WriteNotFoundMessage();
+                    }
                     break;
                 }
                 case "rem": 
                 {
-                    Rem(variable);
+                    if (!storage.Remove(variableName.Command)) 
+                    {
+                        WriteNotFoundMessage();
+                    }
                     break;
                 }
             }
         }
-        
-        public void ExecuteLine(string command) 
+
+        public void AddBreak()
         {
-            var parsedCommand = command.Split(' ');
             
-            if (thisIsCodeBlock) 
+        }
+
+        public void StepOver()
+        {
+            
+        }
+
+        public void Step()
+        {
+            
+        }
+
+        public void PrintMem()
+        {
+            foreach (var variable in storage)
             {
-                if (parsedCommand[0] == "end")
-                {
-                    thisIsCodeBlock = false;
-                }
-                else
-                {
-                    ParseStringToDictionary(command);
-                }
-            } 
-            else 
-            {
-                if (parsedCommand[0] =="set")
-                {
-                    thisIsCodeBlock = true;
-                }
+                WriteToStream($"{variable.Key} {variable.Value.Value} {variable.Value.LastChangeInString}");
             }
 
             
-            if (parsedCommand[0] == "run") 
+        }
+
+        public void PrintTrace()
+        {
+            
+        }
+
+        public void ExecuteLine(string command) 
+        {
+            if (command != "end set code" && command != "set code" && command != "run")
+            {
+                AddCommandToMemory(command);
+            }
+            else if (command == "run") 
             {
                 //начинаем интерпреатцию
-                for (int i = 0; i < interpretComands.Count; i++)
+                foreach (var interpretComand in interpretComands)
                 {
-                    ParseString(interpretComands[i]);
-
+                    StartRunCommands(interpretComand);
                 }
             }
         }
