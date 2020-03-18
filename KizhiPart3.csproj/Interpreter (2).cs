@@ -16,6 +16,7 @@ namespace KizhiPart3
                 pult.ExecuteLine(Console.ReadLine());
             }
 
+            return 0;
         }
     }
 
@@ -49,24 +50,15 @@ namespace KizhiPart3
         public abstract class Command
         {
             public int RealLine;
-            public Dictionary<string, VariableInfo> storage;
-            public TextWriter writer;
-            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine)
+
+            public Command(int realLine)
             {
-                this.writer = writer;
-                this.storage = storage;
                 RealLine = realLine;
             }
 
-            public virtual void Do() {}
-            public VariableInfo GetFromStorage(string variableName)
+            public virtual void  Do()
             {
-                if (storage.TryGetValue(variableName, out var ourVariable))
-                {
-                    return ourVariable;
-                }
-
-                throw new NotFoundException(writer);
+                
             }
         }
 
@@ -74,17 +66,14 @@ namespace KizhiPart3
         public class Print : Command
         {
             public VariableInfo Variable;
-            private TextWriter _writer;
-            public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName, int realLine) 
-                : base(ref writer, ref storage, realLine)
+
+            public Print(string variableName, int realLine) : base(realLine)
             {
-                _writer = writer;
-                Variable = new VariableInfo(variableName);
+                Variable = GetFromStorage(variableName);
             }
 
             public override void Do()
             {
-                Variable = GetFromStorage(Variable.Name); // вау аутизм
                 _writer.WriteLine(Variable.Value);
             }
         }
@@ -94,12 +83,9 @@ namespace KizhiPart3
         {
             public VariableInfo Variable;
 
-            public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, VariableInfo variable) 
-                : base(ref writer, ref storage, realLine)
+            public Set(int realLine, VariableInfo variable) : base(realLine)
             {
                 Variable = variable;
-                Variable.LastChangeInString = realLine;
-
             }
 
             public override void Do()
@@ -114,19 +100,16 @@ namespace KizhiPart3
             public VariableInfo Variable; //тут будет стейт до вызова этой комманды
             public int SubValue;
 
-            public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string variableName, int subValue) 
-                : base(ref writer, ref storage, realLine)
+            public Sub(int realLine, string variableName, int subValue) : base(realLine)
             {
-                Variable = new VariableInfo(variableName) {LastChangeInString = realLine};
-
+                var storageVar = GetFromStorage(variableName);
+                Variable = storageVar;
+                
                 SubValue = subValue;
             }
 
             public override void Do()
             {
-                var lastChanged = Variable.LastChangeInString;
-                Variable = GetFromStorage(Variable.Name);
-                Variable.LastChangeInString = lastChanged;
                 Variable.Value -= SubValue;
             }
         }
@@ -135,22 +118,16 @@ namespace KizhiPart3
         {
             public VariableInfo Variable;
 
-            public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string variableName) 
-                : base(ref writer, ref storage, realLine)
+            public Remove(int realLine, string variableName) : base(realLine)
             {
-                Variable = new VariableInfo(variableName) {LastChangeInString = realLine};
-
+                GetFromStorage(variableName)
             }
 
             public override void Do()
             {
-                var lastChanged = Variable.LastChangeInString;
-                Variable = GetFromStorage(Variable.Name);
-                Variable.LastChangeInString = lastChanged;
-                
-                if (!storage.Remove(Variable.Name))
+                if (!storage.Remove(variableName.Command))
                 {
-                    throw new NotFoundException(writer);
+                    
                 }
             }
         }
@@ -186,17 +163,19 @@ namespace KizhiPart3
         private bool isRunning = false;
 //ll
 
+
+
         public void AddCommandToMemory(string code)
         {
             var commands = code.Split('\n').ToList();
-            var line = 0;
-            
+            int line = 0;
+
             foreach (var command in commands)
             {
                 var parsedCommand = command.Split(' ');
             
                 var currentCommand = Switch(parsedCommand, line);
-                interpretComands.AddLast(currentCommand);
+                interpretComands.Add(currentCommand);
 
                 line++;
             }
@@ -215,16 +194,16 @@ namespace KizhiPart3
             switch (parsedCommand[0])
             {
                 case "print":
-                    currentCommand = new Print(ref _writer, ref storage, variableName, line);
+                    currentCommand = new Print(variableName, line);
                     break;
                 case "set":
-                    currentCommand = new Set(ref _writer, ref storage, line, new VariableInfo(variableName, Int32.Parse(parsedCommand[2]), line));
+                    currentCommand = new Set(line, new VariableInfo(variableName, Int32.Parse(parsedCommand[2]), line));
                     break;
                 case "sub":
-                    currentCommand = new Sub(ref _writer, ref storage, line, variableName,Int32.Parse(parsedCommand[2]));
+                    currentCommand = new Sub(line, ,  Int32.Parse(parsedCommand[2]));
                     break;
                 case  "rem":
-                    currentCommand = new Remove(ref _writer, ref storage, line, variableName);
+                    currentCommand = new Remove(line, new VariableInfo(variableName));
                     break;
                 default:
                     throw new Exception("Не найдена комманда");
@@ -235,10 +214,8 @@ namespace KizhiPart3
 
         public class NotFoundException : Exception
         {
-            private TextWriter _writer;
-            public NotFoundException(TextWriter writer)
+            public NotFoundException()
             {
-                _writer = writer;
                 WriteToStream("Переменная отсутствует в памяти");
 
             }
@@ -251,28 +228,31 @@ namespace KizhiPart3
 
         }
 
+        public VariableInfo GetFromStorage(string variableName)
+        {
+            if (storage.TryGetValue(variableName, out var ourVariable))
+            {
+                return ourVariable;
+            }
 
+            throw new NotFoundException();
+        }
 
 
         public void ExecuteLine(string command)
         {
-            var commands = command.Split('\n');
-            foreach (var cmd in commands)
+            if (command != "end set code" && command != "set code" && command != "run")
             {
-                if (cmd != "end set code" && cmd != "set code" && cmd != "run")
+                AddCommandToMemory(command);
+            }
+            else if (command == "run")
+            {
+                //начинаем интерпреатцию
+                foreach (var interpretComand in interpretComands)
                 {
-                    AddCommandToMemory(cmd);
-                }
-                else if (cmd == "run")
-                {
-                    //начинаем интерпреатцию
-                    foreach (var interpretComand in interpretComands)
-                    {
-                        StartRunCommands(interpretComand);
-                    }
+                    StartRunCommands(interpretComand);
                 }
             }
-            
         }
     }
 }
