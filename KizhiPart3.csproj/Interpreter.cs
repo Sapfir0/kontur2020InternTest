@@ -37,10 +37,11 @@ namespace KizhiPart3
             public int Value;
             public int LastChangeInString;
 
-            public VariableInfo(string name, int value, int? lastChangeInString=null)
+            public VariableInfo(string name, int? value=null, int? lastChangeInString=null)
             {
                 Name = name;
-                Value = value;
+                if (value != null)
+                    Value = (int)value;
                 if (lastChangeInString != null)
                     LastChangeInString = (int)lastChangeInString;
             }
@@ -54,6 +55,11 @@ namespace KizhiPart3
             {
                 RealLine = realLine;
             }
+
+            public virtual void  Do()
+            {
+                
+            }
         }
 
 
@@ -66,7 +72,7 @@ namespace KizhiPart3
                 // get variable from storage
             }
 
-            public void Do()
+            public override void Do()
             {
                 if (storage.TryGetValue(Variable.Name, out var ourVariable))
                 {
@@ -89,7 +95,7 @@ namespace KizhiPart3
                 Variable = variable;
             }
 
-            public void Do()
+            public override void Do()
             {
                 try
                 {
@@ -113,7 +119,7 @@ namespace KizhiPart3
                 SubValue = subValue;
             }
 
-            public void Do()
+            public override void Do()
             {
                 try
                 {
@@ -135,7 +141,7 @@ namespace KizhiPart3
                 Variable = variable;
             }
 
-            public void Do()
+            public override void Do()
             {
                 if (!storage.Remove(variableName.Command))
                 {
@@ -169,75 +175,23 @@ namespace KizhiPart3
         public void AddCommandToMemory(string code)
         {
             var commands = code.Split('\n').ToList();
-            bool functionStart = false;
-            List<Command> currentFunction = new List<Command>();
-
-            string nameOfFunction = "none";
             int line = 0;
 
             foreach (var command in commands)
             {
                 var parsedCommand = command.Split(' ');
-                if (functionStart)
-                {
-                    if (command.Contains("   "))
-                    {
-                        // тут должен быть свитч кейс
-                        currentFunction.Add(new Command(parsedCommand[0]));
-                    }
-                    else
-                    {
-                        functionStart = false;
-                        functionList.Add(nameOfFunction, currentFunction);
-                    }
-                }
-
-                if (command.Contains("def"))
-                {
-                    nameOfFunction = command.Split(' ')[1];
-                    functionStart = true;
-                }
-                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
-                {
-                    if (!command.Contains("   ")) // вызов вне функций
-                    {
-                        var nameOfCalledFunction = command.Split(' ')[1];
-                        var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
-                        if (calledFunc != null)
-                        {
-                            foreach (var functionCommands in calledFunc)
-                            {
-                                interpretComands.Add(functionCommands);
-                            }
-                        }
-                    }
-                }
-                else if (!command.Contains("def") && !functionStart && command!= "")
-                {
-                    Command currentCommand;
-                    switch (parsedCommand[0])
-                    {
-                        case "print":
-                            currentCommand = new Print(parsedCommand[1], line);
-                            break;
-                        case "set":
-                            currentCommand = new Set(line, new VariableInfo(parsedCommand[1], Int32.Parse(parsedCommand[2]), line));
-                            break;
-                        case "sub":
-                            currentCommand = new Sub(line, new VariableInfo(parsedCommand[1]), Int32.Parse(parsedCommand[2]));
-
-                    }
-                    interpretComands.Add();
-                }
+            
+                var currentCommand = Switch(parsedCommand, line);
+                interpretComands.Add(currentCommand);
 
                 line++;
             }
         }
 
 
-        private List<CommandInfo> GetFunctionCommandsByName(string name)
+        private List<Command> GetFunctionCommandsByName(string name)
         {
-            if (functionList.TryGetValue(name, out List<CommandInfo> commands))
+            if (functionList.TryGetValue(name, out List<Command> commands))
             {
                 return commands;
             }
@@ -248,66 +202,37 @@ namespace KizhiPart3
             }
         }
 
-        public void StartRunCommands(CommandInfo blob)
+        public void StartRunCommands(Command blob)
         {
-            var parsedCommand = blob.Command.Split(' ');
-
-            if (parsedCommand[0] == "call") // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
-            {
-                while (true)
-                {
-                    var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
-                    foreach (var cmd in funcCommands)
-                    {
-                        var parsedCmd = cmd.Command.Split(' ');
-
-                        if (parsedCmd[0] != "call")
-                        {
-                            if (parsedCmd.Length == 2)
-                            {
-                                Switch(parsedCmd[0]);
-                            }
-
-                            // не добавляем в очередь а сразу запускаем
-                        }
-                    }
-                }
-            }
-            else
-            {
-                if (parsedCommand.Length == 3)
-                {
-                    var value = parsedCommand[2];
-                    Switch(parsedCommand[0], parsedCommand[1], value);
-                }
-                else if (parsedCommand.Length == 2)
-                {
-                    Switch(parsedCommand[0], parsedCommand[1]);
-                }
-            }
+            blob.Do();
+            
         }
 
-        public void Switch(CommandInfo command, string variable, string value = "0")
+        public Command Switch(string[] parsedCommand, int line)
         {
-            switch (command.Command)
+            Command currentCommand;
+            var variableName = parsedCommand[1];
+            
+            switch (parsedCommand[0])
             {
-                case "set":
-                {
-                    break;
-                }
-                case "sub":
-                {
-                    break;
-                }
                 case "print":
-                {
+                    currentCommand = new Print(variableName, line);
                     break;
-                }
-                case "rem":
-                {
+                case "set":
+                    currentCommand = new Set(line, new VariableInfo(variableName, Int32.Parse(parsedCommand[2]), line));
                     break;
-                }
+                case "sub":
+                    currentCommand = new Sub(line, 
+                        new VariableInfo(variableName, lastChangeInString: line),  Int32.Parse(parsedCommand[2]));
+                    break;
+                case  "rem":
+                    currentCommand = new Remove(line, new VariableInfo(variableName));
+                    break;
+                default:
+                    throw new Exception("Не найдена комманда");
             }
+
+            return currentCommand;
         }
 
         public void AddBreak()
