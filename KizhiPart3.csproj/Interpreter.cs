@@ -154,6 +154,44 @@ namespace KizhiPart3
                 }
             }
         }
+
+        public class Call : Command
+        {
+            public LinkedList<Command> Function;
+
+            public Call(ref TextWriter writer,  ref Dictionary<string, VariableInfo> storage, int realLine, string functionName) 
+                : base(ref writer, ref storage, realLine)
+            {
+                
+            }
+
+            public override void Do()
+            {
+            }
+        }
+
+
+        public class Def : Command
+        {
+            public LinkedList<Command> Function;
+            public Dictionary<string, LinkedList<Command>> functionList;
+            public string functionName;
+            
+            public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage, int realLine, string functionName) 
+                : base(ref writer, ref storage, realLine)
+            {
+                this.functionList = functionList;
+                this.functionName = functionName;
+                // TODO неявно добавим ключик с именем функции в functionList
+                functionList.Add(functionName, new LinkedList<Command>()); // для удобного контроля в других местах
+            }
+
+            public override void Do()
+            {
+                functionList[functionName] = Function;
+            }
+        }
+        
         
         public class AddBreak
         {
@@ -178,13 +216,14 @@ namespace KizhiPart3
 
         public Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
 
-        public Dictionary<string, List<Command>>
-            functionList = new Dictionary<string, List<Command>>(); //может быть сетом // тут будет название функции/команды внутри нее
+        public Dictionary<string, LinkedList<Command>>
+            functionList = new Dictionary<string, LinkedList<Command>>(); //может быть сетом // тут будет название функции/команды внутри нее
 
         public LinkedList<Command> interpretComands = new LinkedList<Command>(); // просто команды которые будем запускать
 
         private bool isRunning = false;
-//ll
+
+        public bool isFunction = false;
 
         public void AddCommandToMemory(string code)
         {
@@ -193,10 +232,27 @@ namespace KizhiPart3
             
             foreach (var command in commands)
             {
-                var parsedCommand = command.Split(' ');
-            
-                var currentCommand = Switch(parsedCommand, line);
-                interpretComands.AddLast(currentCommand);
+                Command currentCommand;
+
+                var commandTrimmed = command.Trim().Split(' ');
+                currentCommand = Switch(commandTrimmed, line);
+                isFunction = (currentCommand is Def);
+
+                if (isFunction)
+                {
+                    
+                }
+                
+                if (command.Contains("    "))
+                {
+                    functionList[].AddLast(currentCommand);
+                }
+                else
+                {
+                    var parsedCommand = command.Split(' ');
+
+                    interpretComands.AddLast(currentCommand);
+                }               
 
                 line++;
             }
@@ -211,7 +267,8 @@ namespace KizhiPart3
         {
             Command currentCommand;
             var variableName = parsedCommand[1];
-            
+
+
             switch (parsedCommand[0])
             {
                 case "print":
@@ -225,6 +282,13 @@ namespace KizhiPart3
                     break;
                 case  "rem":
                     currentCommand = new Remove(ref _writer, ref storage, line, variableName);
+                    break;
+                case "call":
+                    currentCommand = new Call(ref _writer, ref storage, line, variableName);
+                    break;
+                case "def":
+                    isFunction = true;
+                    currentCommand = new Def(ref _writer, ref functionList, ref storage, line, parsedCommand[1]);                    
                     break;
                 default:
                     throw new Exception("Не найдена комманда");
