@@ -32,11 +32,12 @@ namespace KizhiPart3 {
         public void ExampleFunction() {
             pult.ExecuteLine("set code\n" +
                              "def test\n" +
-                             "   set a 5\n" +
-                             "   sub a 3\n" +
-                             "   print b\n" +
-                             "   set b 7\n" +
-                             "call test\n" + 
+                             "    set a 5\n" +
+                             "    sub a 3\n" +
+                             "    print b\n" +
+                             "    set b 7\n" +
+                             "call test\n" +
+                             "set c 21\n" +
                              "end set code\n" +
                              "run");
             AssertEntries("set a 5", "sub a 3", "print b", "set b 7");

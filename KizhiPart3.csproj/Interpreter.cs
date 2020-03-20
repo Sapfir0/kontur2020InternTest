@@ -180,6 +180,7 @@ namespace KizhiPart3
             public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage, int realLine, string functionName) 
                 : base(ref writer, ref storage, realLine)
             {
+                Function = new LinkedList<Command>();
                 this.functionList = functionList;
                 this.functionName = functionName;
                 // TODO неявно добавим ключик с именем функции в functionList
@@ -224,38 +225,46 @@ namespace KizhiPart3
         private bool isRunning = false;
 
         public bool isFunction = false;
+        public Def previousFunction;
 
-        public void AddCommandToMemory(string code)
+        public void AddCommandToMemory(string command, int line)
         {
-            var commands = code.Split('\n').ToList();
-            var line = 0;
-            
-            foreach (var command in commands)
+            Command currentCommand;
+
+            var commandTrimmed = command.Trim().Split(' ');
+            currentCommand = Switch(commandTrimmed, line);
+
+            if (currentCommand is Call)
             {
-                Command currentCommand;
-
-                var commandTrimmed = command.Trim().Split(' ');
-                currentCommand = Switch(commandTrimmed, line);
-                isFunction = (currentCommand is Def);
-
+                //interpretComands.AddAfter(new LinkedListNode<Command>(currentCommand), previousFunction);
+                interpretComands.AddLast(previousFunction);
+                //previousFunction.Function = new LinkedList<Command>();
+                //previousFunction.functionName = null;
+            }
+            
+            if (isFunction)
+            {
+                isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
                 if (isFunction)
                 {
-                    
+                    previousFunction.Function.AddLast(currentCommand);
                 }
-                
-                if (command.Contains("    "))
-                {
-                    functionList[].AddLast(currentCommand);
-                }
-                else
-                {
-                    var parsedCommand = command.Split(' ');
-
-                    interpretComands.AddLast(currentCommand);
-                }               
-
-                line++;
             }
+            else if (currentCommand is Def def)
+            {
+                previousFunction = def;
+            }
+            else
+            {
+                interpretComands.AddLast(currentCommand);
+                
+            }
+
+            if (currentCommand is Def)
+                isFunction = true;
+
+
+            
         }
 
         public void StartRunCommands(Command blob)
@@ -287,7 +296,6 @@ namespace KizhiPart3
                     currentCommand = new Call(ref _writer, ref storage, line, variableName);
                     break;
                 case "def":
-                    isFunction = true;
                     currentCommand = new Def(ref _writer, ref functionList, ref storage, line, parsedCommand[1]);                    
                     break;
                 default:
@@ -321,11 +329,13 @@ namespace KizhiPart3
         public void ExecuteLine(string command)
         {
             var commands = command.Split('\n');
+            var line = 0;
+
             foreach (var cmd in commands)
             {
                 if (cmd != "end set code" && cmd != "set code" && cmd != "run")
                 {
-                    AddCommandToMemory(cmd);
+                    AddCommandToMemory(cmd, line);
                 }
                 else if (cmd == "run")
                 {
@@ -335,6 +345,8 @@ namespace KizhiPart3
                         StartRunCommands(interpretComand);
                     }
                 }
+                line++;
+
             }
             
         }
