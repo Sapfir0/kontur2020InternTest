@@ -209,7 +209,7 @@ namespace KizhiPart2
         private bool isRunning = false;
 
         public bool isFunction = false;
-        public Def previousFunction;
+        public Def currentFunction;
 
         public void AddCommandToMemory(string command, int line)
         {
@@ -218,32 +218,28 @@ namespace KizhiPart2
             var commandTrimmed = command.Trim().Split(' ');
             currentCommand = Switch(commandTrimmed, line);
 
-            if (currentCommand is Call)
-            {
-                var mycall = ((Call) currentCommand).functionName;
-                var func = functionList[mycall];
-                foreach (var f in func)
-                {
-                    interpretComands.AddLast(f);
-
-                }
-            }
-            
+         
             if (isFunction)
             {
                 isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
                 if (isFunction)
                 {
-                    previousFunction.Function.AddLast(currentCommand);
+                    currentFunction.Function.AddLast(currentCommand);
                 }
                 else
                 {
                     interpretComands.AddLast(currentCommand);
+                    foreach (var VARIABLE in currentFunction.Function)
+                    {
+                        functionList[currentFunction.functionName].AddLast(VARIABLE);
+
+                    }
+                    currentFunction.Function = new LinkedList<Command>();
                 }
             }
             else if (currentCommand is Def def)
             {
-                previousFunction = def;
+                currentFunction = def;
             }
             else
             {
