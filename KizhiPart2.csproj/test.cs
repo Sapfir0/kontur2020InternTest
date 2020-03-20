@@ -1,76 +1,152 @@
 ﻿using System.IO;
+using System.Linq;
 using NUnit.Framework;
 
+using KizhiPart2;
 
 namespace KizhiPart2 {
     [TestFixture]
-    public class test {
+    public class MediumTest {
         Interpreter pult = new Interpreter(new StringWriter());
-
+        
         [SetUp]
         public void buildNewPult() {
             pult = new Interpreter(new StringWriter());
-            pult.ExecuteLine("set code");
         }
-        
-        [TearDown]
-        public void Run()
+
+        [Test]
+        public void Example3()
         {
-            pult.ExecuteLine("end code");
-            pult.ExecuteLine("run");
-        }
-        
-        [Test]
-        public void Example() {
-            pult.Set("a", 5);
-            pult.Sub("a", 3);
-            pult.Print("a");
-            pult.Set("b", 4);
-            pult.Print("b");
-
-        } 
-        
-        [Test]
-        public void RemError() {
-            pult.Rem("a");
-
-        } 
-        
-        [Test]
-        public void PrintError() {
-            pult.Print("a");
-
-        } 
-        
-        [Test]
-        public void SubError() {
-            pult.Sub("a", 12);
-
+            pult.ExecuteLine("set code\n" +
+                             "def test\n" +
+                             "    set a 5\n" +
+                             "    sub a 3\n" +
+                             "    print b\n" +
+                             "call test\n" +
+                             "end set code\n" +
+                             "add break 2\n" +
+                             "run\n" +
+                             "print mem");
         }
 
         [Test]
         public void ExampleFunction() {
-            pult.ExecuteLine("def test \n" +
-                             "   set a 5 \n" +
-                             "   sub a 3 \n" +
-                             "   print b \n" +
-                             "   set b 7 \n" +
-                             "call test \n");
+            pult.ExecuteLine("set code\n" +
+                             "def test\n" +
+                             "    set a 5\n" +
+                             "    sub a 3\n" +
+                             "    print b\n" +
+                             "    set b 7\n" +
+                             "call test\n" +
+                             "set c 21\n" +
+                             "end set code\n" +
+                             "run");
+            
         }
         
         [Test]
         public void NotExistedFunction() {
-            pult.ExecuteLine("call test \n");
+            pult.ExecuteLine("set code\n" +
+                             "call test\n" +
+                             "end set code\n" +
+                             "run");
+  
         }
 
         [Test]
-        public void InlineFunction()
+        public void ShouldCallFunctionAndOutputNotFound()
         {
-            pult.ExecuteLine("def test \n" +
-                             "    rem a \n" +
-                             "set a 12 \n" +
-                             "call test \n" +
-                             "print a \n");
+            pult.ExecuteLine("set code\n" +
+                             "def test\n" +
+                             "     rem a\n" +
+                             "set a 12\n" +
+                             "call test\n" +
+                             "print a" +
+                             "end set code\n" +
+                             "run");
+            
+        }
+
+        [Test]
+        public void CallABeforeDefine()
+        {
+            pult.ExecuteLine(
+                "set code\n" +
+                        "print a\n" +
+                        "call A\n" +
+                        "def A\n" +
+                        "    set a 12\n" +
+                        "    sub a 1\n" +
+                        "    rem a\n" +
+                        "print a\n" +
+                        "call A\n" +
+                        "print a\n" +
+                        "end set code\n" +
+                        "add break 3"
+                );
+            /*AssertEntries(                
+                "set a 12", 
+                    "sub a 1", 
+                    "rem a", 
+                    "print a",
+                    "set a 12", 
+                    "sub a 1", 
+                    "rem a"
+                );*/
+        }
+        
+        [Test]
+        public void CallA()
+        {
+            pult.ExecuteLine("set code\n" +
+                             "print a\n" +
+                             "def A\n" +
+                             "    set a 12\n" +
+                             "    sub a 1\n" +
+                             "    rem a\n" +
+                             "call A\n" +                             
+                             "print a\n" +
+                             "end set code\n" +
+                             "run"
+            );
+
+        }
+
+        private void AssertEntries(params string[] expected)
+        {
+            Assert.AreEqual(pult.interpretComands, expected.AsEnumerable());
+        }
+
+
+        [Test]
+        public void CrossFunctions()
+        {
+            pult.ExecuteLine("set code\n" +
+                             "def A\n" +
+                             "    print a\n" +
+                             "    call B\n" +
+                             "set a 2\n" +
+                             "call A\n" +
+                             "def B\n" +
+                             "    set a 13\n" + 
+                             "end set code\n" +
+                             "run");
+
+        }
+        
+
+        
+        [Test]
+        public void NotEnteredRecursion()
+        {
+            pult.ExecuteLine("set code\n" +
+                             "def test \n" +
+                             "    print a \n" +
+                             "    call test \n" +
+                             "set a 321 \n" +
+                             "print a \n" +
+                             "end set code\n" +
+                             "run");
 
         }
         
@@ -84,18 +160,7 @@ namespace KizhiPart2 {
                              "call test \n");
 
         }
-        
-        [Test]
-        public void NotEnteredRecursion()
-        {
-            pult.ExecuteLine("def test \n" +
-                             "    print a \n" +
-                             "    call test \n" +
-                             "set a 321 \n" +
-                             "print a \n");
-
-        }
-
+        /*
         [Test]
         public void CrossRecursion()
         {
@@ -109,6 +174,6 @@ namespace KizhiPart2 {
                              "set b 000 \n" +
                              "call A \n");
 
-        }
+        }*/
     }
 }

@@ -189,7 +189,11 @@ namespace KizhiPart3
 
             public override void Do()
             {
-                functionList[functionName] = Function;
+                foreach (var command in Function)
+                {
+                    command.Do();
+                }
+                //functionList[functionName] = Function;
             }
         }
         
@@ -206,12 +210,23 @@ namespace KizhiPart3
         {
         }
         
-        public class PrintMem
+        public class PrintMem : Command
         {
-       
+            private TextWriter _writer;
+            public List<VariableInfo> mem;
+            public PrintMem(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int line) 
+                : base(ref writer, ref storage, line)
+            {          
+                _writer = writer;
+            }
+
+            public override void Do()
+            {
+                
+            }
         }
 
-        public class PrintTrace
+        public class PrintTrace : Command
         {
         }
 
