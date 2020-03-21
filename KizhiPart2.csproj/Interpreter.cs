@@ -27,9 +27,6 @@ namespace KizhiPart2
         public Interpreter(TextWriter writer)
         {
             _writer = writer;
-            storage = new Dictionary<string, VariableInfo>();
-            functionList = new Dictionary<string, LinkedList<Command>>();
-            interpretComands = new LinkedList<Command>();
         }
 
 
@@ -94,8 +91,9 @@ namespace KizhiPart2
             public override void Do()
             {
                 Variable = GetFromStorage(Variable.Name); // вау аутизм
-                _writer.WriteLine(Variable.Value);
+                 _writer.WriteLine(Variable.Value);
                 Console.WriteLine(Variable.Value);
+
             }
         }
 
@@ -115,7 +113,8 @@ namespace KizhiPart2
             {
                 if (!storage.ContainsKey(Variable.Name))
                     storage.Add(Variable.Name, Variable);
-    
+                else
+                    storage[Variable.Name] = Variable;
             }
         }
 
@@ -254,11 +253,6 @@ namespace KizhiPart2
             }
             catch (NotFoundException e)
             {
-                /*kjh.Add(blob);
-                if (kjh.Count > 2)
-                {
-                    throw new Exception(debugLine + "\n" + debugFunction + howMatchExecuteThis.ToString());
-                }*/
                 _writer.WriteLine("Переменная отсутствует в памяти");
                 Console.WriteLine("Переменная отсутствует в памяти");
             }
@@ -296,6 +290,7 @@ namespace KizhiPart2
 
             return currentCommand;
         }
+        
 
         public class NotFoundException : Exception
         {
@@ -307,7 +302,9 @@ namespace KizhiPart2
         }
         
         //private List<Command> kjh = new List<Command>();
-        //private string debugLine;
+        static public string debugLine;
+
+        static public int i = 0;
         //private string debugFunction;
         //private int howMatchExecuteThis = 0;
         /*public string GetInterpreCommandsAsString()
@@ -317,9 +314,52 @@ namespace KizhiPart2
             {
                 foo += VARIABLE.commandName + " ";
             }
-
             return foo;
         }*/
+        
+        public List<Command> GetFixedInterpretationList()
+        {
+            var fixedInterpreterCommands = new List<Command>();
+            foreach (var interpretCommand in interpretComands)
+            {
+                if (interpretCommand is Call call)
+                {
+                    var functionCommands = functionList[call.functionName];
+
+                    foreach (var functionCommand in functionCommands)
+                    {
+                        if (functionCommand is Call callingInnerFuinction) // да, поддерживаем только один уровень вложенности 
+                        {
+                            var morefunction = functionList[callingInnerFuinction.functionName];
+                            foreach (var mycommand in morefunction)
+                            {
+                                fixedInterpreterCommands.Add(mycommand);
+                            }
+                            if (callingInnerFuinction.functionName == call.functionName) // не спасет от кроссрекурсии 
+                            {
+                                while (true)
+                                {
+                                    // запускаем команды
+                                    // пока так
+                                }
+                            }
+                        }
+                        else
+                        {
+                            fixedInterpreterCommands.Add(functionCommand);
+                        }
+                        
+                    }
+                }
+                else
+                {
+                    fixedInterpreterCommands.Add(interpretCommand);
+                }
+                
+            }
+
+            return fixedInterpreterCommands;
+        }
         
         public void ExecuteLine(string command)
         {
@@ -330,40 +370,31 @@ namespace KizhiPart2
             {
                 if (cmd != "end set code" && cmd != "set code" && cmd != "run")
                 {
-                    //debugLine = command;
+                    debugLine += command;
                     AddCommandToMemory(cmd, line);
                 }
                 line++;
             }
-
-            var fixedInterpreterCommands = new LinkedList<Command>();
-
+            
             //debugFunction += GetInterpreCommandsAsString();
 
-            foreach (var interpretComand in interpretComands)
+            if (command != "run")
             {
-                if (interpretComand is Call call)
-                {
-                    var functionCommands = functionList[call.functionName];
-                    //howMatchExecuteThis++;
-                    foreach (var func in functionCommands)
-                    {
-                        fixedInterpreterCommands.AddLast(func);
-                    }
-                }
-                else
-                {
-                    fixedInterpreterCommands.AddLast(interpretComand);
-                }
-                
+                return;
             }
 
+            var fixedInterpreterCommands = GetFixedInterpretationList();
+            
             foreach (var mycommand in fixedInterpreterCommands) // c рекурсией не прокатит, но пох
             {
                 //debugFunction += mycommand.ToString();
                 RunCommand(mycommand);
             }
             
+            storage = new Dictionary<string, VariableInfo>();
+            functionList = new Dictionary<string, LinkedList<Command>>();
+
+            debugLine = " ";
         }
     }
 }

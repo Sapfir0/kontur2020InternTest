@@ -31,16 +31,17 @@ namespace KizhiPart2 {
 
         [Test]
         public void ExampleFunction() {
-            pult.ExecuteLine("set code\n" +
-                             "def test\n" +
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine("def test\n" +
                              "    set a 5\n" +
                              "    sub a 3\n" +
                              "    print b\n" +
-                             "    set b 7\n" +
+                             "set b 7\n" +
                              "call test\n" +
-                             "set c 21\n" +
-                             "end set code\n" +
-                             "run");
+                             "print a");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+
             
         }
         
@@ -120,18 +121,22 @@ namespace KizhiPart2 {
 
         [Test]
         public void CrossFunctions()
-        {
-            pult.ExecuteLine("set code\n" +
+        {            
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine(
                              "def A\n" +
                              "    print a\n" +
+                             "    set a 2\n" +
                              "    call B\n" +
-                             "set a 2\n" +
+                             "set a 13\n" +
                              "call A\n" +
                              "def B\n" +
-                             "    set a 13\n" + 
-                             "end set code\n" +
-                             "run");
-
+                             "    print a"
+            );
+            // set | print | set | print
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+            // 13 2
         }
         
 
@@ -153,12 +158,15 @@ namespace KizhiPart2 {
         [Test]
         public void Recursive()
         {
-            pult.ExecuteLine("def test \n" +
-                             "    print a \n" +
-                             "    call test \n" +
-                             "set a 321 \n" +
-                             "call test \n");
-
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine(
+                "def test \n" +
+                "    print a\n" +
+                "    call test\n" +
+                "set a 321\n" +
+                "call test");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
         }
         /*
         [Test]
