@@ -3,13 +3,23 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace KizhiPart2
+namespace KizhiPart3
 {
-    public class Interpreter
+    public class Debugger
     {
         private TextWriter _writer;
+        private Dictionary<string, VariableInfo> _storage = new Dictionary<string, VariableInfo>();
 
-        public Interpreter(TextWriter writer)
+        private Dictionary<string, LinkedList<Command>> _functionList = new Dictionary<string, LinkedList<Command>>(); 
+        //может быть сетом // тут будет название функции/команды внутри нее
+
+        private readonly LinkedList<Command> _interpretCommands = new LinkedList<Command>(); // просто команды которые будем запускать
+
+        private bool _isFunction;
+        private Def _currentFunction;
+
+
+        public Debugger(TextWriter writer)
         {
             _writer = writer;
         }
@@ -19,12 +29,15 @@ namespace KizhiPart2
         {
             public readonly string Name;
             public int Value;
+            public int LastChangedLine;
 
-            public VariableInfo(string name, int? value=null)
+            public VariableInfo(string name, int? value=null, int? lastChangedLine=null)
             {
                 Name = name;
                 if (value != null)
-                    this.Value = (int)value;
+                    Value = (int)value;
+                if (lastChangedLine != null)
+                    LastChangedLine = (int)lastChangedLine;
             }
         }
 
@@ -33,12 +46,14 @@ namespace KizhiPart2
             protected readonly Dictionary<string, VariableInfo> Storage;
             protected readonly TextWriter Writer;
             private readonly string _commandName;
+            protected int RealLine;
 
-            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string commandName)
+            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string commandName)
             {
                 Writer = writer;
                 Storage = storage;
                 _commandName = commandName;
+                RealLine = realLine;
             }
 
             public override string ToString()
@@ -63,8 +78,8 @@ namespace KizhiPart2
         {
             private VariableInfo _variable;
 
-            public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName) 
-                : base(ref writer, ref storage,  "print")
+            public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName, int realLine) 
+                : base(ref writer, ref storage, realLine, "print")
             {
                 _variable = new VariableInfo(variableName);
             }
@@ -81,10 +96,10 @@ namespace KizhiPart2
         {
             private readonly VariableInfo _variable;
 
-            public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, VariableInfo variable) 
-                : base(ref writer, ref storage, "set")
+            public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, VariableInfo variable, int realLine) 
+                : base(ref writer, ref storage, realLine, "set")
             {
-                this._variable = variable;
+                _variable = variable;
             }
 
             public override void Do()
@@ -101,8 +116,8 @@ namespace KizhiPart2
             private VariableInfo _variable; //тут будет стейт до вызова этой комманды
             private readonly int _subValue;
 
-            public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName, int subValue) 
-                : base(ref writer, ref storage,  "sub")
+            public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName, int subValue, int realLine) 
+                : base(ref writer, ref storage,  realLine,"sub")
             {
                 _variable = new VariableInfo(variableName);
                 _subValue = subValue;
@@ -119,8 +134,8 @@ namespace KizhiPart2
         {
             private VariableInfo _variable;
 
-            public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName) 
-                : base(ref writer, ref storage,  "rem")
+            public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName, int realLine) 
+                : base(ref writer, ref storage, realLine, "rem")
             {
                 _variable = new VariableInfo(variableName);
             }
@@ -132,14 +147,14 @@ namespace KizhiPart2
             }
         }
 
-        public class Call : Command
+        private class Call : Command
         {
-            public string functionName;
+            public readonly string FunctionName;
 
-            public Call(ref TextWriter writer,  ref Dictionary<string, VariableInfo> storage, string functionName) 
-                : base(ref writer, ref storage,  "call")
+            public Call(ref TextWriter writer,  ref Dictionary<string, VariableInfo> storage, string functionName, int realLine) 
+                : base(ref writer, ref storage,  realLine,"call")
             {
-                this.functionName = functionName;
+                this.FunctionName = functionName;
             }
 
             public override void Do()
@@ -148,14 +163,14 @@ namespace KizhiPart2
         }
 
 
-        public class Def : Command
+        private class Def : Command
         {
-            public string functionName;
+            public readonly string FunctionName;
             
-            public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage,  string functionName) 
-                : base(ref writer, ref storage,  "def")
+            public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage,  string functionName, int realLine) 
+                : base(ref writer, ref storage, realLine, "def")
             {
-                this.functionName = functionName;
+                FunctionName = functionName;
                 // неявно добавим ключик с именем функции в functionList
                 functionList.Add(functionName, new LinkedList<Command>()); // для удобного контроля в других местах
             }
@@ -165,52 +180,93 @@ namespace KizhiPart2
             }
         }
 
-
-        private Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
-
-        private Dictionary<string, LinkedList<Command>> functionList = new Dictionary<string, LinkedList<Command>>(); 
-        //может быть сетом // тут будет название функции/команды внутри нее
-
-        private LinkedList<Command> interpretComands = new LinkedList<Command>(); // просто команды которые будем запускать
-
-        private bool isFunction;
-        private Def currentFunction;
-        
-        public void AddCommandToMemory(string command)
+        private class PrintMem : Command
         {
-            Command currentCommand;
+            private Dictionary<string, VariableInfo> _storage;
 
-            var commandTrimmed = command.Trim().Split(' ');
-            currentCommand = Switch(commandTrimmed);
-            
-            if (isFunction)
+            private TextWriter _writer;
+
+            public PrintMem(ref Dictionary<string, VariableInfo> storage, ref TextWriter writer, int realLine) :
+                base(ref writer, ref storage, realLine,"print mem")
             {
-                isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
-                if (isFunction)
+                _storage = storage;
+                _writer = writer;
+            }
+
+            public override void Do()
+            {
+                foreach (var variable in _storage.Values)
                 {
-                    functionList[currentFunction.functionName].AddLast(currentCommand);
+                    _writer.WriteLine($"{variable.Name} {variable.Value} {variable.LastChangedLine}");
+                }
+            }
+            /*{var_name} {value} {line}
+            {var_name} {value} {line}
+            {var_name} {value} {line}
+
+            {var_name} - имя переменной
+            {value} - значение переменной
+            {line} - строка последнего изменения переменной
+            Порядок вывода переменных из памяти неважен и в тестах не учитывается.*/
+        }
+        
+        
+        private class
+        
+        private class PrintTrace : Command
+        {
+            private Dictionary<string, VariableInfo> _storage;
+            private TextWriter _writer;
+
+            public PrintTrace(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine) 
+                : base(ref writer, ref storage, realLine, "print trace")
+            {
+                _storage = storage;
+                _writer = writer;
+            }
+            /*Формат вывода стектрейса:
+            {line} {function_name}
+            {line} {function_name}
+            {line} - номер строки с именем функции, номер именно строки с call
+            {function_name} - имя вызываемой функции
+
+                Стектрейс расположен в порядке от последней вызванной функции до первой.*/
+        }
+
+
+        public void AddCommandToMemory(string command, int line)
+        {
+            var commandTrimmed = command.Trim().Split(' ');
+            var currentCommand = Switch(commandTrimmed, line);
+            
+            if (_isFunction)
+            {
+                _isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
+                if (_isFunction)
+                {
+                    _functionList[_currentFunction.FunctionName].AddLast(currentCommand);
                 }
                 else
                 {
-                    interpretComands.AddLast(currentCommand);
+                    _interpretCommands.AddLast(currentCommand);
                 }
             }
             else if (currentCommand is Def def)
             {
-                currentFunction = def;
+                _currentFunction = def;
             }
             else
             {
-                interpretComands.AddLast(currentCommand);
+                _interpretCommands.AddLast(currentCommand);
                 
             }
             
             if (currentCommand is Def)
-                isFunction = true;
+                _isFunction = true;
         }
-        
 
-        public void RunCommand(Command command)
+
+        private void RunCommand(Command command)
         {
             try
             {
@@ -226,9 +282,9 @@ namespace KizhiPart2
         {
             _writer.WriteLine("Переменная отсутствует в памяти");
         }
-        
 
-        public Command Switch(string[] parsedCommand)
+
+        private Command Switch(string[] parsedCommand, int line)
         {
             Command currentCommand;
             var variableName = parsedCommand[1];
@@ -237,22 +293,22 @@ namespace KizhiPart2
             switch (parsedCommand[0])
             {
                 case "print":
-                    currentCommand = new Print(ref _writer, ref storage, variableName);
+                    currentCommand = new Print(ref _writer, ref _storage, variableName, line);
                     break;
                 case "set":
-                    currentCommand = new Set(ref _writer, ref storage,  new VariableInfo(variableName, Int32.Parse(parsedCommand[2])));
+                    currentCommand = new Set(ref _writer, ref _storage,  new VariableInfo(variableName, Int32.Parse(parsedCommand[2]), line), line);
                     break;
                 case "sub":
-                    currentCommand = new Sub(ref _writer, ref storage,  variableName,Int32.Parse(parsedCommand[2]));
+                    currentCommand = new Sub(ref _writer, ref _storage,  variableName,Int32.Parse(parsedCommand[2]), line);
                     break;
                 case  "rem":
-                    currentCommand = new Remove(ref _writer, ref storage,  variableName);
+                    currentCommand = new Remove(ref _writer, ref _storage,  variableName, line);
                     break;
                 case "call":
-                    currentCommand = new Call(ref _writer, ref storage,  variableName);
+                    currentCommand = new Call(ref _writer, ref _storage,  variableName, line);
                     break;
                 case "def":
-                    currentCommand = new Def(ref _writer, ref functionList, ref storage,  parsedCommand[1]);                    
+                    currentCommand = new Def(ref _writer, ref _functionList, ref _storage,  parsedCommand[1], line);                    
                     break;
                 default:
                     throw new Exception("Не найдена комманда");
@@ -260,9 +316,9 @@ namespace KizhiPart2
 
             return currentCommand;
         }
-        
 
-        public class NotFoundException : Exception
+
+        private class NotFoundException : Exception
         {
             private TextWriter _writer;
             public NotFoundException(TextWriter writer)
@@ -278,23 +334,23 @@ namespace KizhiPart2
                 RunCommand(command);
             }
         }
-        
-        public void RunFromMemory()
+
+        private void RunFromMemory()
         {
-            foreach (var interpretCommand in interpretComands)
+            foreach (var interpretCommand in _interpretCommands)
             {
                 if (interpretCommand is Call call)
                 {
-                    var functionCommands = functionList[call.functionName];
+                    var functionCommands = _functionList[call.FunctionName];
 
                     foreach (var functionCommand in functionCommands)
                     {
-                        if (functionCommand is Call callingInnerFuinction) // да, поддерживаем только один уровень вложенности 
+                        if (functionCommand is Call callingInnerFunction) // да, поддерживаем только один уровень вложенности 
                         {
-                            var innerFunction = functionList[callingInnerFuinction.functionName];
+                            var innerFunction = _functionList[callingInnerFunction.FunctionName];
                             RunCommands(innerFunction);
 
-                            if (callingInnerFuinction.functionName == call.functionName) // рекурсия(неполноценная)
+                            if (callingInnerFunction.FunctionName == call.FunctionName) // рекурсия(неполноценная)
                             {
                                 while (true)
                                 {
@@ -312,30 +368,71 @@ namespace KizhiPart2
                 
             }
         }
+
+        private bool isDebugMode;
+        private bool isRunning;
+
+        private Command DebuggerSwitch(string[] command)
+        {
+            Command currentCommand;
+            switch (command[0])
+            {
+                case "add":
+                    break;
+                case "step":
+                    if (command.Length == 1) // step
+                        
+                    else //step over
+                    
+                    break;
+                case "print":
+                    switch (command[1])
+                    {
+                        case "mem":
+                            currentCommand = new PrintMem(ref _storage, ref _writer, 0); //написать debuggercommand
+                            break;
+                        case "trace":
+                            currentCommand = new PrintTrace(ref _writer, ref _storage, 0);
+                            break;
+                    }
+                    break;
+                case "run":
+                    break;
+                default:
+                    throw new Exception("Не найдена команда");
+            }
+
+            return currentCommand;
+        }
         
         
         public void ExecuteLine(string command)
         {
             var commands = command.Split('\n');
-
+            var line = 0;
             foreach (var cmd in commands) //первоначальная разметка кода
             {
                 if (cmd != "end set code" && cmd != "set code" && cmd != "run")
                 {
-                    AddCommandToMemory(cmd);
+                    AddCommandToMemory(cmd, line);
                 }
+                line++;
             }
-            
-            if (command != "run")
+
+            if (command == "end set code")
             {
-                return;
+                isDebugMode = true;
             }
 
-            RunFromMemory();
+            if (isRunning)
+            {
+                RunFromMemory();
+
+            }
 
             
-            storage.Clear();
-            functionList.Clear();
+            _storage.Clear();
+            _functionList.Clear();
 
         }
     }

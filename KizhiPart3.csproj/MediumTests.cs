@@ -3,15 +3,16 @@ using System.Linq;
 using NUnit.Framework;
 
 using KizhiPart2;
+using KizhiPart3;
 
 namespace KizhiPart2 {
     [TestFixture]
     public class MediumTest {
-        Interpreter pult = new Interpreter(new StringWriter());
+        Debugger pult = new Debugger(new StringWriter());
         
         [SetUp]
         public void buildNewPult() {
-            pult = new Interpreter(new StringWriter());
+            pult = new Debugger(new StringWriter());
         }
 
         [Test]
@@ -125,10 +126,6 @@ namespace KizhiPart2 {
 
         }
 
-        private void AssertEntries(params string[] expected)
-        {
-            Assert.AreEqual(pult.interpretComands, expected.AsEnumerable());
-        }
 
 
         [Test]
