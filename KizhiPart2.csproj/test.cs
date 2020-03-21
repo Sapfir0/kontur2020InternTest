@@ -67,6 +67,18 @@ namespace KizhiPart2 {
                              "run");
             
         }
+        
+        [Test]
+        public void ShouldClearMemoryAfterInterpretation()
+        {
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine("print a\nset a 5");
+            pult.ExecuteLine("print a\nset a 5");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+            
+        }
+
 
         [Test]
         public void CallABeforeDefine()
@@ -158,7 +170,7 @@ namespace KizhiPart2 {
         [Test]
         public void Recursive()
         {
-            pult.ExecuteLine("set code");
+            /*pult.ExecuteLine("set code");
             pult.ExecuteLine(
                 "def test \n" +
                 "    print a\n" +
@@ -166,7 +178,7 @@ namespace KizhiPart2 {
                 "set a 321\n" +
                 "call test");
             pult.ExecuteLine("end set code");
-            pult.ExecuteLine("run");
+            pult.ExecuteLine("run");*/
         }
         /*
         [Test]

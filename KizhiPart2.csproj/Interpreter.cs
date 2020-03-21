@@ -1,56 +1,54 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
 
-namespace KizhiPart2 {
 
-    public class Interpreter {
-        public class MainClass
+namespace KizhiPart2
+{
+    public class MainClass
+    {
+        static int Main()
         {
-            static int Main()
+            Interpreter pult = new Interpreter(new StringWriter());
+            while (true)
             {
-                Interpreter pult = new Interpreter(new StringWriter());
-                while (true)
-                {
-                    pult.ExecuteLine(Console.ReadLine());
-                }
-
+                pult.ExecuteLine(Console.ReadLine());
             }
+
         }
-        
-        private TextWriter _writer;
-        Dictionary<string, int> storage = new Dictionary<string, int>(); // словарь для переменных
-        Dictionary<string, List<string>> functionList = new Dictionary<string, List<string>>(); //может быть сетом // тут будет название функции/команды внутри нее
-        public List<string> interpretComands = new List<string>(); // просто команды которые будем запускать
-        
-        bool thisIsCodeBlock = false;
+    }
 
-        private bool isRunning = false;
+    public class Interpreter
+    {
+        public TextWriter _writer;
 
-        
-        public Interpreter(TextWriter writer) 
+        public Interpreter(TextWriter writer)
         {
             _writer = writer;
         }
 
-        public class NotFoundException : Exception
+
+        public class VariableInfo
         {
-            private TextWriter _writer;
-            public NotFoundException(TextWriter writer)
+            public string Name;
+            public int Value;
+
+            public VariableInfo(string name, int? value=null)
             {
-                _writer = writer;
-            } 
+                Name = name;
+                if (value != null)
+                    Value = (int)value;
+            }
         }
-        
-        
+
         public abstract class Command
         {
-            public Dictionary<string, int> storage;
+            public Dictionary<string, VariableInfo> storage;
             public TextWriter writer;
             public string commandName;
-            public Command(ref TextWriter writer, ref Dictionary<string, int> storage, string commandName)
+            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string commandName)
             {
                 this.writer = writer;
                 this.storage = storage;
@@ -63,7 +61,7 @@ namespace KizhiPart2 {
             }
 
             public virtual void Do() {}
-            public int GetFromStorage(string variableName)
+            public VariableInfo GetFromStorage(string variableName)
             {
                 if (storage.TryGetValue(variableName, out var ourVariable))
                 {
@@ -76,266 +74,291 @@ namespace KizhiPart2 {
 
         public class Print : Command
         {
-            public string Variable;
+            public VariableInfo Variable;
             private TextWriter _writer;
-            public Print(ref TextWriter writer, ref Dictionary<string, int> storage, string variableName) 
-                : base(ref writer, ref storage, "print")
+            public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName) 
+                : base(ref writer, ref storage,  "print")
             {
                 _writer = writer;
-                Variable = variableName;
+                Variable = new VariableInfo(variableName);
             }
 
             public override void Do()
             {
-                var variableValue = GetFromStorage(Variable); 
-                 _writer.WriteLine(variableValue);
-                Console.WriteLine(variableValue);
+                Variable = GetFromStorage(Variable.Name); // вау аутизм
+                 _writer.WriteLine(Variable.Value);
             }
         }
 
 
         public class Set : Command
         {
-            public string variableName;
-            public int variableValue;
+            public VariableInfo Variable;
 
-            public Set(ref TextWriter writer, ref Dictionary<string, int> storage, string variableName, int variableValue) 
+            public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, VariableInfo variable) 
                 : base(ref writer, ref storage, "set")
             {
-                this.variableName = variableName;
-                this.variableValue = variableValue;
+                Variable = variable;
             }
 
             public override void Do()
             {
-                if (!storage.ContainsKey(variableName))
-                    storage.Add(variableName, variableValue);
+                if (!storage.ContainsKey(Variable.Name))
+                    storage.Add(Variable.Name, Variable);
                 else
-                    storage[variableName] = variableValue;
+                    storage[Variable.Name] = Variable;
             }
         }
 
         public class Sub : Command
         {
-            public string Variable; //тут будет стейт до вызова этой комманды
+            public VariableInfo Variable; //тут будет стейт до вызова этой комманды
             public int SubValue;
 
-            public Sub(ref TextWriter writer, ref Dictionary<string, int> storage, string variableName, int subValue) 
-                : base(ref writer, ref storage, "sub")
+            public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName, int subValue) 
+                : base(ref writer, ref storage,  "sub")
             {
-                Variable = variableName;
+                Variable = new VariableInfo(variableName);
+
                 SubValue = subValue;
             }
 
             public override void Do()
             {
-                storage[Variable] -= SubValue;
+                Variable = GetFromStorage(Variable.Name);
+                Variable.Value -= SubValue;
             }
         }
 
         public class Remove : Command
         {
-            public string Variable;
+            public VariableInfo Variable;
 
-            public Remove(ref TextWriter writer, ref Dictionary<string, int> storage, string variableName) 
-                : base(ref writer, ref storage, "rem")
+            public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName) 
+                : base(ref writer, ref storage,  "rem")
             {
-                Variable = variableName;
+                Variable = new VariableInfo(variableName);
 
             }
 
             public override void Do()
             {
-                storage.Remove(Variable);
+                Variable = GetFromStorage(Variable.Name);
+                storage.Remove(Variable.Name);
+            }
+        }
+
+        public class Call : Command
+        {
+            public string functionName;
+
+            public Call(ref TextWriter writer,  ref Dictionary<string, VariableInfo> storage, string functionName) 
+                : base(ref writer, ref storage,  "call")
+            {
+                this.functionName = functionName;
+            }
+
+            public override void Do()
+            {
             }
         }
 
 
-
-        public void ParseStringToDictionary(string code)
+        public class Def : Command
         {
-            var commands = code.Split('\n').ToList();
+            public string functionName;
             
-            bool functionStart = false;
-            List<string> currentFunction = new List<string>();
-            string nameOfFunction = "none";
-
-            foreach (var command in commands)
+            public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage,  string functionName) 
+                : base(ref writer, ref storage,  "def")
             {
-                if (functionStart)
-                {
-                    if (command.Contains("  "))
-                    {
-                        currentFunction.Add(command.TrimStart());
-                    }
-                    else
-                    {
-                        functionStart = false;
-                        functionList.Add(nameOfFunction, currentFunction);
-                    }
-                }
-                
-                if (command.Contains("def"))
-                {
-                    nameOfFunction = command.Split(' ')[1];
-                    functionStart = true;
-                }
-                else if (command.Contains("call")) //ели у нас вызов функции, то мы инлайним 
-                {
-                    if (!command.Contains("   ")) // вызов вне функций
-                    {              
-                        var nameOfCalledFunction = command.Split(' ')[1];
-                        var calledFunc = GetFunctionCommandsByName(nameOfCalledFunction);
-                        foreach (var functionCommands in calledFunc)
-                        {
-                            interpretComands.Add(functionCommands);
-                        }
-                    }
-                }
-                else if (!command.Contains("def") && !functionStart && command != "")
-                {
-                    interpretComands.Add(command);
-                }
-                
+                this.functionName = functionName;
+                // неявно добавим ключик с именем функции в functionList
+                functionList.Add(functionName, new LinkedList<Command>()); // для удобного контроля в других местах
+            }
+
+            public override void Do()
+            {
             }
         }
+        
 
+        public Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
 
-        private List<string> GetFunctionCommandsByName(string name)
+        public Dictionary<string, LinkedList<Command>> functionList = new Dictionary<string, LinkedList<Command>>(); 
+        //может быть сетом // тут будет название функции/команды внутри нее
+
+        public LinkedList<Command> interpretComands = new LinkedList<Command>(); // просто команды которые будем запускать
+        
+        public bool isFunction;
+        public Def currentFunction;
+        
+        public void AddCommandToMemory(string command)
         {
-            if (functionList.TryGetValue(name, out List<string> commands))
-            {
-                return commands;
-            }
-            else
-            {
-                //WriteNotFoundMessage();
-                return null;
-            }
-        }
+            Command currentCommand;
 
-        public void ParseString(string blob) 
-        {
-            var parsedCommand = blob.Split(' ');
+            var commandTrimmed = command.Trim().Split(' ');
+            currentCommand = Switch(commandTrimmed);
             
-            if (parsedCommand[0] == "call") // в коде будет обязательно бесконечная рекурсия, если мы встертили ее тут
+            if (isFunction)
             {
-                while(true)
+                isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
+                if (isFunction)
                 {
-                    var funcCommands = GetFunctionCommandsByName(parsedCommand[1]);
-                    foreach (var cmd in funcCommands)
-                    {
-                        var parsedCmd = cmd.Split(' ');
-
-                        if (parsedCmd[0] != "call")
-                        {
-                            if (parsedCmd.Length == 3)
-                            {
-                                Switch(parsedCmd[0], parsedCmd[1], parsedCmd[2]);
-
-                            }
-                            else
-                            {
-                                Switch(parsedCmd[0], parsedCmd[1]);
-                            }
-                            // не добавляем в очередь а сразу запускаем
-                        }
-                    }
-
-                }
-            }
-            else
-            {
-                if (parsedCommand.Length == 3)
-                {
-                    Switch(parsedCommand[0], parsedCommand[1], parsedCommand[2]);
+                    functionList[currentFunction.functionName].AddLast(currentCommand);
                 }
                 else
                 {
-                    Switch(parsedCommand[0], parsedCommand[1]);
-
+                    interpretComands.AddLast(currentCommand);
                 }
+            }
+            else if (currentCommand is Def def)
+            {
+                currentFunction = def;
+            }
+            else
+            {
+                interpretComands.AddLast(currentCommand);
+                
             }
             
+            if (currentCommand is Def)
+                isFunction = true;
         }
 
-        public void Switch(string command, string variable, string value="0")
+        public void RunCommands(List<Command> commands)
         {
-            Command currentCommand;
-            switch (command)
+            foreach (var command in commands)
             {
-                case "set":
-                {
-                    currentCommand = new Set(ref _writer, ref storage, variable, Int32.Parse(value));
-                    break;
-                }
-                case "sub":
-                {
-                    currentCommand = new Sub(ref _writer, ref storage, variable, Int32.Parse(value));
-                    break;
-                }
-                case "print":
-                {
-                    currentCommand = new Print(ref _writer, ref storage, variable);
-                    break;
-                }
-                case "rem":
-                {
-                    currentCommand = new Remove(ref _writer, ref storage, variable);
-                    break;
-                }
-                default:
-                    throw new SuccessException("Успешный провал");
-                    break;
+                RunCommand(command);
             }
+        }
 
+        public void RunCommand(Command command)
+        {
             try
             {
-                currentCommand.Do();
-
+                command.Do();
             }
             catch (NotFoundException e)
             {
-                _writer.WriteLine("Переменная отсутствует в памяти");
-                Console.WriteLine("Переменная отсутствует в памяти");
+                PrintNotFound();
             }
         }
-        
-        public void ExecuteLine(string command) 
+
+        private void PrintNotFound()
         {
-            var parsedCommand = command.Split(' ');
-            
-            if (thisIsCodeBlock) 
+            _writer.WriteLine("Переменная отсутствует в памяти");
+        }
+        
+
+        public Command Switch(string[] parsedCommand)
+        {
+            Command currentCommand;
+            var variableName = parsedCommand[1];
+
+
+            switch (parsedCommand[0])
             {
-                if (parsedCommand[0] == "end")
+                case "print":
+                    currentCommand = new Print(ref _writer, ref storage, variableName);
+                    break;
+                case "set":
+                    currentCommand = new Set(ref _writer, ref storage,  new VariableInfo(variableName, Int32.Parse(parsedCommand[2])));
+                    break;
+                case "sub":
+                    currentCommand = new Sub(ref _writer, ref storage,  variableName,Int32.Parse(parsedCommand[2]));
+                    break;
+                case  "rem":
+                    currentCommand = new Remove(ref _writer, ref storage,  variableName);
+                    break;
+                case "call":
+                    currentCommand = new Call(ref _writer, ref storage,  variableName);
+                    break;
+                case "def":
+                    currentCommand = new Def(ref _writer, ref functionList, ref storage,  parsedCommand[1]);                    
+                    break;
+                default:
+                    throw new Exception("Не найдена комманда");
+            }
+
+            return currentCommand;
+        }
+        
+
+        public class NotFoundException : Exception
+        {
+            private TextWriter _writer;
+            public NotFoundException(TextWriter writer)
+            {
+                _writer = writer;
+            } 
+        }
+        
+        public List<Command> GetFixedInterpretationList()
+        {
+            var fixedInterpreterCommands = new List<Command>();
+            foreach (var interpretCommand in interpretComands)
+            {
+                if (interpretCommand is Call call)
                 {
-                    thisIsCodeBlock = false;
+                    var functionCommands = functionList[call.functionName];
+
+                    foreach (var functionCommand in functionCommands)
+                    {
+                        if (functionCommand is Call callingInnerFuinction) // да, поддерживаем только один уровень вложенности 
+                        {
+                            var innerFunction = functionList[callingInnerFuinction.functionName];
+                            foreach (var innerCommand in innerFunction)
+                            {
+                                fixedInterpreterCommands.Add(innerCommand);
+                            }
+                            if (callingInnerFuinction.functionName == call.functionName) // не спасет от кроссрекурсии 
+                            {
+                                while (true)
+                                {
+                                }
+                            }
+                        }
+                        else
+                        {
+                            fixedInterpreterCommands.Add(functionCommand);
+                        }
+                        
+                    }
                 }
                 else
                 {
-                    ParseStringToDictionary(command);
+                    fixedInterpreterCommands.Add(interpretCommand);
                 }
-            } 
-            else 
+                
+            }
+
+            return fixedInterpreterCommands;
+        }
+        
+        public void ExecuteLine(string command)
+        {
+            var commands = command.Split('\n');
+
+            foreach (var cmd in commands) //первоначальная разметка кода
             {
-                if (parsedCommand[0] =="set")
+                if (cmd != "end set code" && cmd != "set code" && cmd != "run")
                 {
-                    thisIsCodeBlock = true;
+                    AddCommandToMemory(cmd);
                 }
             }
+            
+            if (command != "run")
+            {
+                return;
+            }
+
+            var fixedInterpreterCommands = GetFixedInterpretationList();
 
             
-            if (parsedCommand[0] == "run") 
-            {
-                //начинаем интерпреатцию
-                for (int i = 0; i < interpretComands.Count; i++)
-                {
-                    ParseString(interpretComands[i]);
+            storage.Clear();
+            functionList.Clear();
 
-                }
-            }
-        
         }
     }
-
 }
