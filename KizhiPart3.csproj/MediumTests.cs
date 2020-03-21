@@ -1,16 +1,17 @@
 ﻿using System.IO;
 using System.Linq;
 using NUnit.Framework;
-using FluentAssertions;
 
-namespace KizhiPart3 {
+using KizhiPart2;
+
+namespace KizhiPart2 {
     [TestFixture]
     public class MediumTest {
-        Debugger pult = new Debugger(new StringWriter());
+        Interpreter pult = new Interpreter(new StringWriter());
         
         [SetUp]
         public void buildNewPult() {
-            pult = new Debugger(new StringWriter());
+            pult = new Interpreter(new StringWriter());
         }
 
         [Test]
@@ -30,17 +31,17 @@ namespace KizhiPart3 {
 
         [Test]
         public void ExampleFunction() {
-            pult.ExecuteLine("set code\n" +
-                             "def test\n" +
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine("def test\n" +
                              "    set a 5\n" +
                              "    sub a 3\n" +
                              "    print b\n" +
-                             "    set b 7\n" +
+                             "set b 7\n" +
                              "call test\n" +
-                             "set c 21\n" +
-                             "end set code\n" +
-                             "run");
-            AssertEntries("set a 5", "sub a 3", "print b", "set b 7");
+                             "print a");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+
             
         }
         
@@ -61,12 +62,23 @@ namespace KizhiPart3 {
                              "     rem a\n" +
                              "set a 12\n" +
                              "call test\n" +
-                             "print a" +
+                             "print a\n" +
                              "end set code\n" +
                              "run");
-            AssertEntries("set a 12", "rem a", "print a");
             
         }
+        
+        [Test]
+        public void ShouldClearMemoryAfterInterpretation()
+        {
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine("print a\nset a 5");
+            pult.ExecuteLine("print a\nset a 5");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+            
+        }
+
 
         [Test]
         public void CallABeforeDefine()
@@ -105,43 +117,38 @@ namespace KizhiPart3 {
                              "    set a 12\n" +
                              "    sub a 1\n" +
                              "    rem a\n" +
+                             "call A\n" +                             
                              "print a\n" +
-                             "call A\n" +
                              "end set code\n" +
                              "run"
             );
-            AssertEntries("set code\n" +
-                          "print a", 
-                "set a 12", 
-                "sub a 1", 
-                "rem a", 
-                "print a",
-                "set a 12", 
-                "sub a 1", 
-                "rem a"
-            );
+
         }
 
         private void AssertEntries(params string[] expected)
         {
-            pult.interpretComands.ShouldBeEquivalentTo(expected.AsEnumerable());
+            Assert.AreEqual(pult.interpretComands, expected.AsEnumerable());
         }
 
 
         [Test]
         public void CrossFunctions()
-        {
-            pult.ExecuteLine("set code\n" +
+        {            
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine(
                              "def A\n" +
                              "    print a\n" +
+                             "    set a 2\n" +
                              "    call B\n" +
-                             "set a 2\n" +
+                             "set a 13\n" +
                              "call A\n" +
                              "def B\n" +
-                             "    set a 13\n" + 
-                             "end set code\n" +
-                             "run");
-
+                             "    print a"
+            );
+            // set | print | set | print
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
+            // 13 2
         }
         
 
@@ -160,17 +167,20 @@ namespace KizhiPart3 {
 
         }
         
-        /*[Test]
+        [Test]
         public void Recursive()
         {
-            pult.ExecuteLine("def test \n" +
-                             "    print a \n" +
-                             "    call test \n" +
-                             "set a 321 \n" +
-                             "call test \n");
-
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine(
+                "def test \n" +
+                "    print a\n" +
+                "    call test\n" +
+                "set a 321\n" +
+                "call test");
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine("run");
         }
-        
+        /*
         [Test]
         public void CrossRecursion()
         {

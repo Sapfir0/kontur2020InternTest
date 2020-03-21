@@ -1,28 +1,13 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
 
-
 namespace KizhiPart2
 {
-    public class MainClass
-    {
-        static int Main()
-        {
-            Interpreter pult = new Interpreter(new StringWriter());
-            while (true)
-            {
-                pult.ExecuteLine(Console.ReadLine());
-            }
-
-        }
-    }
-
     public class Interpreter
     {
-        public TextWriter _writer;
+        private TextWriter _writer;
 
         public Interpreter(TextWriter writer)
         {
@@ -32,119 +17,118 @@ namespace KizhiPart2
 
         public class VariableInfo
         {
-            public string Name;
+            public readonly string Name;
             public int Value;
 
             public VariableInfo(string name, int? value=null)
             {
                 Name = name;
                 if (value != null)
-                    Value = (int)value;
+                    this.Value = (int)value;
             }
         }
 
         public abstract class Command
         {
-            public Dictionary<string, VariableInfo> storage;
-            public TextWriter writer;
-            public string commandName;
+            protected readonly Dictionary<string, VariableInfo> Storage;
+            protected readonly TextWriter Writer;
+            private readonly string _commandName;
+
             public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string commandName)
             {
-                this.writer = writer;
-                this.storage = storage;
-                this.commandName = commandName;
+                Writer = writer;
+                Storage = storage;
+                _commandName = commandName;
             }
 
             public override string ToString()
             {
-                return commandName;
+                return _commandName;
             }
 
             public virtual void Do() {}
-            public VariableInfo GetFromStorage(string variableName)
+
+            protected VariableInfo GetFromStorage(string variableName)
             {
-                if (storage.TryGetValue(variableName, out var ourVariable))
+                if (Storage.TryGetValue(variableName, out var ourVariable))
                 {
                     return ourVariable;
                 }
-                throw new NotFoundException(writer);
+                throw new NotFoundException(Writer);
             }
         }
 
 
-        public class Print : Command
+        private class Print : Command
         {
-            public VariableInfo Variable;
-            private TextWriter _writer;
+            private VariableInfo _variable;
+
             public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName) 
                 : base(ref writer, ref storage,  "print")
             {
-                _writer = writer;
-                Variable = new VariableInfo(variableName);
+                _variable = new VariableInfo(variableName);
             }
 
             public override void Do()
             {
-                Variable = GetFromStorage(Variable.Name); // вау аутизм
-                 _writer.WriteLine(Variable.Value);
+                _variable = GetFromStorage(_variable.Name); // вау аутизм
+                 Writer.WriteLine(_variable.Value);
             }
         }
 
 
-        public class Set : Command
+        private class Set : Command
         {
-            public VariableInfo Variable;
+            private readonly VariableInfo _variable;
 
             public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, VariableInfo variable) 
                 : base(ref writer, ref storage, "set")
             {
-                Variable = variable;
+                this._variable = variable;
             }
 
             public override void Do()
             {
-                if (!storage.ContainsKey(Variable.Name))
-                    storage.Add(Variable.Name, Variable);
+                if (!Storage.ContainsKey(_variable.Name))
+                    Storage.Add(_variable.Name, _variable);
                 else
-                    storage[Variable.Name] = Variable;
+                    Storage[_variable.Name] = _variable;
             }
         }
 
-        public class Sub : Command
+        private class Sub : Command
         {
-            public VariableInfo Variable; //тут будет стейт до вызова этой комманды
-            public int SubValue;
+            private VariableInfo _variable; //тут будет стейт до вызова этой комманды
+            private readonly int _subValue;
 
             public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName, int subValue) 
                 : base(ref writer, ref storage,  "sub")
             {
-                Variable = new VariableInfo(variableName);
-
-                SubValue = subValue;
+                _variable = new VariableInfo(variableName);
+                _subValue = subValue;
             }
 
             public override void Do()
             {
-                Variable = GetFromStorage(Variable.Name);
-                Variable.Value -= SubValue;
+                _variable = GetFromStorage(_variable.Name);
+                _variable.Value -= _subValue;
             }
         }
 
-        public class Remove : Command
+        private class Remove : Command
         {
-            public VariableInfo Variable;
+            private VariableInfo _variable;
 
             public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage,  string variableName) 
                 : base(ref writer, ref storage,  "rem")
             {
-                Variable = new VariableInfo(variableName);
-
+                _variable = new VariableInfo(variableName);
             }
 
             public override void Do()
             {
-                Variable = GetFromStorage(Variable.Name);
-                storage.Remove(Variable.Name);
+                _variable = GetFromStorage(_variable.Name);
+                Storage.Remove(_variable.Name);
             }
         }
 
@@ -180,17 +164,17 @@ namespace KizhiPart2
             {
             }
         }
-        
 
-        public Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
 
-        public Dictionary<string, LinkedList<Command>> functionList = new Dictionary<string, LinkedList<Command>>(); 
+        private Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
+
+        private Dictionary<string, LinkedList<Command>> functionList = new Dictionary<string, LinkedList<Command>>(); 
         //может быть сетом // тут будет название функции/команды внутри нее
 
-        public LinkedList<Command> interpretComands = new LinkedList<Command>(); // просто команды которые будем запускать
-        
-        public bool isFunction;
-        public Def currentFunction;
+        private LinkedList<Command> interpretComands = new LinkedList<Command>(); // просто команды которые будем запускать
+
+        private bool isFunction;
+        private Def currentFunction;
         
         public void AddCommandToMemory(string command)
         {
@@ -224,14 +208,7 @@ namespace KizhiPart2
             if (currentCommand is Def)
                 isFunction = true;
         }
-
-        public void RunCommands(List<Command> commands)
-        {
-            foreach (var command in commands)
-            {
-                RunCommand(command);
-            }
-        }
+        
 
         public void RunCommand(Command command)
         {
@@ -293,10 +270,17 @@ namespace KizhiPart2
                 _writer = writer;
             } 
         }
-        
-        public List<Command> GetFixedInterpretationList()
+
+        private void RunCommands(LinkedList<Command> commands)
         {
-            var fixedInterpreterCommands = new List<Command>();
+            foreach (var command in commands)
+            {
+                RunCommand(command);
+            }
+        }
+        
+        public void RunFromMemory()
+        {
             foreach (var interpretCommand in interpretComands)
             {
                 if (interpretCommand is Call call)
@@ -308,33 +292,27 @@ namespace KizhiPart2
                         if (functionCommand is Call callingInnerFuinction) // да, поддерживаем только один уровень вложенности 
                         {
                             var innerFunction = functionList[callingInnerFuinction.functionName];
-                            foreach (var innerCommand in innerFunction)
-                            {
-                                fixedInterpreterCommands.Add(innerCommand);
-                            }
-                            if (callingInnerFuinction.functionName == call.functionName) // не спасет от кроссрекурсии 
+                            RunCommands(innerFunction);
+
+                            if (callingInnerFuinction.functionName == call.functionName) // рекурсия(неполноценная)
                             {
                                 while (true)
                                 {
+                                    RunCommands(innerFunction);
                                 }
                             }
                         }
-                        else
-                        {
-                            fixedInterpreterCommands.Add(functionCommand);
-                        }
-                        
+                        RunCommand(functionCommand);
                     }
                 }
                 else
                 {
-                    fixedInterpreterCommands.Add(interpretCommand);
+                    RunCommand(interpretCommand);
                 }
                 
             }
-
-            return fixedInterpreterCommands;
         }
+        
         
         public void ExecuteLine(string command)
         {
@@ -353,7 +331,7 @@ namespace KizhiPart2
                 return;
             }
 
-            var fixedInterpreterCommands = GetFixedInterpretationList();
+            RunFromMemory();
 
             
             storage.Clear();
