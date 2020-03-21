@@ -27,6 +27,9 @@ namespace KizhiPart2
         public Interpreter(TextWriter writer)
         {
             _writer = writer;
+            storage = new Dictionary<string, VariableInfo>();
+            functionList = new Dictionary<string, LinkedList<Command>>();
+            interpretComands = new LinkedList<Command>();
         }
 
 
@@ -51,11 +54,18 @@ namespace KizhiPart2
             public int RealLine;
             public Dictionary<string, VariableInfo> storage;
             public TextWriter writer;
-            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine)
+            public string commandName;
+            public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string commandName)
             {
                 this.writer = writer;
                 this.storage = storage;
                 RealLine = realLine;
+                this.commandName = commandName;
+            }
+
+            public override string ToString()
+            {
+                return commandName;
             }
 
             public virtual void Do() {}
@@ -75,7 +85,7 @@ namespace KizhiPart2
             public VariableInfo Variable;
             private TextWriter _writer;
             public Print(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, string variableName, int realLine) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "print")
             {
                 _writer = writer;
                 Variable = new VariableInfo(variableName);
@@ -95,7 +105,7 @@ namespace KizhiPart2
             public VariableInfo Variable;
 
             public Set(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, VariableInfo variable) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "set")
             {
                 Variable = variable;
                 Variable.LastChangeInString = realLine;
@@ -115,7 +125,7 @@ namespace KizhiPart2
             public int SubValue;
 
             public Sub(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string variableName, int subValue) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "sub")
             {
                 Variable = new VariableInfo(variableName) {LastChangeInString = realLine};
 
@@ -136,7 +146,7 @@ namespace KizhiPart2
             public VariableInfo Variable;
 
             public Remove(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string variableName) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "rem")
             {
                 Variable = new VariableInfo(variableName) {LastChangeInString = realLine};
 
@@ -156,11 +166,10 @@ namespace KizhiPart2
 
         public class Call : Command
         {
-            public LinkedList<Command> Function;
             public string functionName;
 
             public Call(ref TextWriter writer,  ref Dictionary<string, VariableInfo> storage, int realLine, string functionName) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "call")
             {
                 this.functionName = functionName;
             }
@@ -173,15 +182,11 @@ namespace KizhiPart2
 
         public class Def : Command
         {
-            public LinkedList<Command> Function;
-            public Dictionary<string, LinkedList<Command>> functionList;
             public string functionName;
             
             public Def(ref TextWriter writer, ref Dictionary<string, LinkedList<Command>> functionList, ref Dictionary<string, VariableInfo> storage, int realLine, string functionName) 
-                : base(ref writer, ref storage, realLine)
+                : base(ref writer, ref storage, realLine, "def")
             {
-                Function = new LinkedList<Command>();
-                this.functionList = functionList;
                 this.functionName = functionName;
                 // TODO неявно добавим ключик с именем функции в functionList
                 functionList.Add(functionName, new LinkedList<Command>()); // для удобного контроля в других местах
@@ -189,15 +194,9 @@ namespace KizhiPart2
 
             public override void Do()
             {
-                foreach (var command in Function)
-                {
-                    command.Do();
-                }
             }
         }
         
-
-
 
         public Dictionary<string, VariableInfo> storage = new Dictionary<string, VariableInfo>();
 
@@ -211,30 +210,25 @@ namespace KizhiPart2
         public bool isFunction = false;
         public Def currentFunction;
 
+        
+        
         public void AddCommandToMemory(string command, int line)
         {
             Command currentCommand;
 
             var commandTrimmed = command.Trim().Split(' ');
             currentCommand = Switch(commandTrimmed, line);
-
-         
+            
             if (isFunction)
             {
                 isFunction = command.Contains("    "); // важно, тут изначальная строка, а не порезанная
                 if (isFunction)
                 {
-                    currentFunction.Function.AddLast(currentCommand);
+                    functionList[currentFunction.functionName].AddLast(currentCommand);
                 }
                 else
                 {
                     interpretComands.AddLast(currentCommand);
-                    foreach (var VARIABLE in currentFunction.Function)
-                    {
-                        functionList[currentFunction.functionName].AddLast(VARIABLE);
-
-                    }
-                    currentFunction.Function = new LinkedList<Command>();
                 }
             }
             else if (currentCommand is Def def)
@@ -246,13 +240,13 @@ namespace KizhiPart2
                 interpretComands.AddLast(currentCommand);
                 
             }
-
+            
             if (currentCommand is Def)
                 isFunction = true;
-
         }
+        
 
-        public void StartRunCommands(Command blob)
+        public void RunCommand(Command blob)
         {
             try
             {
@@ -260,6 +254,11 @@ namespace KizhiPart2
             }
             catch (NotFoundException e)
             {
+                /*kjh.Add(blob);
+                if (kjh.Count > 2)
+                {
+                    throw new Exception(debugLine + "\n" + debugFunction + howMatchExecuteThis.ToString());
+                }*/
                 _writer.WriteLine("Переменная отсутствует в памяти");
                 Console.WriteLine("Переменная отсутствует в памяти");
             }
@@ -306,28 +305,63 @@ namespace KizhiPart2
                 _writer = writer;
             } 
         }
+        
+        //private List<Command> kjh = new List<Command>();
+        //private string debugLine;
+        //private string debugFunction;
+        //private int howMatchExecuteThis = 0;
+        /*public string GetInterpreCommandsAsString()
+        {
+            string foo = "";
+            foreach (var VARIABLE in interpretComands)
+            {
+                foo += VARIABLE.commandName + " ";
+            }
 
+            return foo;
+        }*/
+        
         public void ExecuteLine(string command)
         {
             var commands = command.Split('\n');
             var line = 0;
 
-            foreach (var cmd in commands)
+            foreach (var cmd in commands) //первоначальная разметка кода
             {
                 if (cmd != "end set code" && cmd != "set code" && cmd != "run")
                 {
+                    //debugLine = command;
                     AddCommandToMemory(cmd, line);
                 }
-                else if (cmd == "run")
+                line++;
+            }
+
+            var fixedInterpreterCommands = new LinkedList<Command>();
+
+            //debugFunction += GetInterpreCommandsAsString();
+
+            foreach (var interpretComand in interpretComands)
+            {
+                if (interpretComand is Call call)
                 {
-                    //начинаем интерпреатцию
-                    foreach (var interpretComand in interpretComands)
+                    var functionCommands = functionList[call.functionName];
+                    //howMatchExecuteThis++;
+                    foreach (var func in functionCommands)
                     {
-                        StartRunCommands(interpretComand);
+                        fixedInterpreterCommands.AddLast(func);
                     }
                 }
-                line++;
+                else
+                {
+                    fixedInterpreterCommands.AddLast(interpretComand);
+                }
+                
+            }
 
+            foreach (var mycommand in fixedInterpreterCommands) // c рекурсией не прокатит, но пох
+            {
+                //debugFunction += mycommand.ToString();
+                RunCommand(mycommand);
             }
             
         }

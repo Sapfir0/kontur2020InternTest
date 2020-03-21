@@ -61,7 +61,7 @@ namespace KizhiPart2 {
                              "     rem a\n" +
                              "set a 12\n" +
                              "call test\n" +
-                             "print a" +
+                             "print a\n" +
                              "end set code\n" +
                              "run");
             
