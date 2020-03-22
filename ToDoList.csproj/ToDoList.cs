@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace ToDoList
 {
@@ -159,6 +160,8 @@ namespace ToDoList
 
         public void DismissUser(int userId)
         {
+            History myelement = null;
+
             foreach (var historyList in history)
             {
                 for (int i = 0; i < historyList.Value.Count; i++)
@@ -175,24 +178,29 @@ namespace ToDoList
                     else
                     {
                         // пробегаемся второй раз по всему списку изменений по этому айдишнику
+                        
                         for (int j = historyList.Value.Count - 1; j >= 0; j--)
                         {
                             if (historyList.Value[j].userId != userId)
                             {
-                                var elem = historyList.Value[j];
-                                UpdateEntry(elem.name, elem.state);
+                                myelement = historyList.Value[j];
+                                //UpdateEntry(elem);
                                 break; 
                             }
                         }
                     }
                 }
+
             }
+            if (myelement != null) UpdateEntry(myelement);
+
 
             dismissedUsers.Add(userId);
         }
 
         public void AllowUser(int userId)
         {
+            History myelem = null;
             dismissedUsers.Remove(userId);
             foreach (var historyList in history)
             {
@@ -210,10 +218,12 @@ namespace ToDoList
 
                     foreach (var action in historyList.Value)
                     {
-                        UpdateEntry(action.name, action.state);
+                        //UpdateEntry(action);
+                        myelem = action;
                     }
                 }
             }
+            if (myelem != null) UpdateEntry(myelem);
         }
 
 
@@ -291,8 +301,17 @@ namespace ToDoList
             Count++;
         }
 
-        private void UpdateEntry(string name, EntryState state)
-            => entrySet[entrySet.Count - 1] = new Entry(entrySet[entrySet.Count - 1].Id, name, state);
+        private void UpdateEntry(History action)
+        {
+            // должны исправить историю
+            if (entrySet.Count - 1 <= 0)
+            { 
+                history.FirstOrDefault().Value.Add(action);
+                return;
+            }
+            entrySet[entrySet.Count - 1] = new Entry(entrySet[entrySet.Count -1].Id, action.name, action.state);
+
+        }
 
         private void RemoveFromEntryList(int entryId)
         {

@@ -2,10 +2,10 @@
 using System.Linq;
 using NUnit.Framework;
 
-using KizhiPart2;
+
 using KizhiPart3;
 
-namespace KizhiPart2 {
+namespace KizhiPart3 {
     [TestFixture]
     public class MediumTest {
         Debugger pult = new Debugger(new StringWriter());
@@ -18,16 +18,18 @@ namespace KizhiPart2 {
         [Test]
         public void Example3()
         {
-            pult.ExecuteLine("set code\n" +
-                             "def test\n" +
-                             "    set a 5\n" +
-                             "    sub a 3\n" +
-                             "    print b\n" +
-                             "call test\n" +
-                             "end set code\n" +
-                             "add break 2\n" +
-                             "run\n" +
-                             "print mem");
+            pult.ExecuteLine("set code");
+            pult.ExecuteLine( "def test\n" +
+                              "    set a 5\n" +
+                              "    sub a 3\n" +
+                              "    print b\n" +
+                              "call test"
+            );
+            pult.ExecuteLine("end set code");
+            pult.ExecuteLine( "add break 2\n" +
+                              "run\n" +
+                              "print mem");
+
         }
 
         [Test]
@@ -84,6 +86,7 @@ namespace KizhiPart2 {
         [Test]
         public void CallABeforeDefine()
         {
+            
             pult.ExecuteLine(
                 "set code\n" +
                         "print a\n" +
@@ -98,15 +101,7 @@ namespace KizhiPart2 {
                         "end set code\n" +
                         "add break 3"
                 );
-            /*AssertEntries(                
-                "set a 12", 
-                    "sub a 1", 
-                    "rem a", 
-                    "print a",
-                    "set a 12", 
-                    "sub a 1", 
-                    "rem a"
-                );*/
+
         }
         
         [Test]

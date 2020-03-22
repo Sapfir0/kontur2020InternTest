@@ -14,7 +14,7 @@ namespace CommandLineCalculator
     class MyConsole : UserConsole
     {
         protected UserConsole userConsole;
-        protected Storage storage;
+        public Storage storage;
         public Datas data;
         
         public int lastInputCommand = 0;
@@ -119,6 +119,9 @@ namespace CommandLineCalculator
                 {
                     case "exit":
                         myConsole.data.x = 420;
+                        myConsole.Serialize(new Datas());
+                        myConsole.data = new Datas();
+                        
                         return;
                     case "add":
                         Add(myConsole);
@@ -145,6 +148,7 @@ namespace CommandLineCalculator
                 
                 myConsole.Serialize(myConsole.data);
             }
+
         }
 
         private long Random(UserConsole console, long x)

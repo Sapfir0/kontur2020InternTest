@@ -26,9 +26,6 @@ namespace KizhiPart3
                              "end set code\n" +
                              "run");
             
-            
-            pult.storage["a"].Value.ShouldBeEquivalentTo(2);
-            pult.storage["b"].Value.ShouldBeEquivalentTo(4);
         } 
         
     }
