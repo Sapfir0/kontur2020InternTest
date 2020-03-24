@@ -48,14 +48,14 @@ namespace KizhiPart3 {
             
         }
         
-        [Test]
+        /*[Test]
         public void NotExistedFunction() {
             pult.ExecuteLine("set code\n" +
                              "call test\n" +
                              "end set code\n" +
                              "run");
   
-        }
+        }*/
 
         [Test]
         public void ShouldCallFunctionAndOutputNotFound()
@@ -159,7 +159,7 @@ namespace KizhiPart3 {
 
         }
         
-        [Test]
+        /*[Test]
         public void Recursive()
         {
             pult.ExecuteLine("set code");
@@ -171,7 +171,7 @@ namespace KizhiPart3 {
                 "call test");
             pult.ExecuteLine("end set code");
             pult.ExecuteLine("run");
-        }
+        }*/
         /*
         [Test]
         public void CrossRecursion()

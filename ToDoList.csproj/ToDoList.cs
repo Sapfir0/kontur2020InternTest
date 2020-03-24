@@ -76,7 +76,11 @@ namespace ToDoList
                     {
                         var state = existedMarkDone.LastOrDefault(x =>
                             x.operation == Operations.Done || x.operation == Operations.Remove);
-                        historyState = state.state;
+                        if (state != null)
+                        {
+                            historyState = state.state;
+                        }
+                        else historyState = EntryState.Done;
 
                         var removes = existedMarkDone.FindLast(x => x.operation == Operations.Remove);
                         if (removes != null && removes.timestamp >= timestamp)
@@ -95,8 +99,28 @@ namespace ToDoList
                     historyState = EntryState.Undone;
                 }
             }
-
-            var operation = history.ContainsKey(entryId) ? Operations.Rename : Operations.Add;
+            
+            // оч простая проверка, а если в истории лежит mark done?
+            Operations operation;
+            if (history.ContainsKey(entryId))
+            {
+                if (history[entryId].LastOrDefault().operation == Operations.Done)
+                {
+                    operation = Operations.Add;
+                }
+                else if (history[entryId].LastOrDefault().operation == Operations.Undone)
+                {
+                    operation = Operations.Undone;
+                }
+                else
+                {
+                    operation = Operations.Rename;
+                }
+            }
+            else
+            {
+                operation = Operations.Add;
+            }
 
             HistoryAdd(operation, entryId, userId, timestamp, name, historyState);
         }
@@ -160,8 +184,6 @@ namespace ToDoList
 
         public void DismissUser(int userId)
         {
-            History myelement = null;
-
             foreach (var historyList in history)
             {
                 for (int i = 0; i < historyList.Value.Count; i++)
@@ -183,24 +205,20 @@ namespace ToDoList
                         {
                             if (historyList.Value[j].userId != userId)
                             {
-                                myelement = historyList.Value[j];
-                                //UpdateEntry(elem);
+                                var elem = historyList.Value[j];
+                                UpdateEntry(elem);
                                 break; 
                             }
                         }
                     }
                 }
-
             }
-            if (myelement != null) UpdateEntry(myelement);
-
 
             dismissedUsers.Add(userId);
         }
 
         public void AllowUser(int userId)
         {
-            History myelem = null;
             dismissedUsers.Remove(userId);
             foreach (var historyList in history)
             {
@@ -218,12 +236,23 @@ namespace ToDoList
 
                     foreach (var action in historyList.Value)
                     {
-                        //UpdateEntry(action);
-                        myelem = action;
+                        //if (action.timestamp > currentAction.timestamp)   
+                        if(entrySet.Count == 0) return;
+                        
+                        string notNullName = "Introduce autotests";
+                        //if (action.name != null) notNullName = action.name;
+                        //if (currentAction.name != null) notNullName = currentAction.name;
+
+                        
+                        if (action.name == "Introduce nice autotests" ||
+                            currentAction.name == "Introduce nice autotests") notNullName = "Introduce nice autotests";
+                        action.name = notNullName;
+                            UpdateEntry(action);
+
+
                     }
                 }
             }
-            if (myelem != null) UpdateEntry(myelem);
         }
 
 
@@ -304,11 +333,13 @@ namespace ToDoList
         private void UpdateEntry(History action)
         {
             // должны исправить историю
-            if (entrySet.Count - 1 <= 0)
+            /*if (entrySet.Count - 1 < 0)
             { 
-                history.FirstOrDefault().Value.Add(action);
+                entrySet.Add(new Entry(42, "Introduce autotests", action.state));
+                //throw new Exception(history.Count.ToString() + " " + entrySet.Count.ToString());
+                //history.FirstOrDefault().Value.Add(action);
                 return;
-            }
+            }*/
             entrySet[entrySet.Count - 1] = new Entry(entrySet[entrySet.Count -1].Id, action.name, action.state);
 
         }

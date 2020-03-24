@@ -214,6 +214,17 @@ namespace ToDoList
 
             AssertEntries(Entry.Done(42, "Introduce autotests"));
         }
+        
+        [Test]
+        public void Allow_Creation_New()
+        {
+            list.DismissUser(userA);
+            list.MarkDone(42, userB, 105);
+            list.AddEntry(42, userA, "Introduce autotests", 100);
+            list.AllowUser(userA);
+
+            AssertEntries(Entry.Done(42, "Introduce autotests"));
+        }
 
         [Test]
         public void Allow_Name_Updates()
@@ -239,6 +250,16 @@ namespace ToDoList
             AssertEntries(Entry.Done(42, "Introduce autotests"));
         }
 
+        [Test]
+        public void Allow_Done_New()
+        {
+            list.DismissUser(userB);
+            list.MarkDone(42, userB, 105);
+            list.AddEntry(42, userA, "Introduce autotests", 100);
+            list.AllowUser(userB);
+
+            AssertEntries(Entry.Done(42, "Introduce autotests"));
+        }
         [Test]
         public void Allow_Undone()
         {

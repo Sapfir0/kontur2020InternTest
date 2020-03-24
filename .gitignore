@@ -6,3 +6,4 @@ obj/
 packages/
 .vs
 Assemblies/
+node_modules

@@ -34,6 +34,9 @@ namespace KizhiPart3
 
         private bool isDebugMode;
         private bool isRunning;
+        
+        List<int> stopLineSequence = new List<int>();
+
 
 
         public Debugger(TextWriter writer)
@@ -63,7 +66,7 @@ namespace KizhiPart3
             protected readonly Dictionary<string, VariableInfo> Storage;
             protected readonly TextWriter Writer;
             private readonly string _commandName;
-            protected int RealLine;
+            public int RealLine;
 
             public Command(ref TextWriter writer, ref Dictionary<string, VariableInfo> storage, int realLine, string commandName)
             {
@@ -199,79 +202,66 @@ namespace KizhiPart3
             {
             }
         }
-
-
-
-        private abstract class DebuggerCommand
-        {
-        }
-        private class PrintMem : DebuggerCommand
-        {
-            public PrintMem(ref Dictionary<string, VariableInfo> storage, ref TextWriter writer) 
-            {
-                foreach (var variable in storage.Values)
-                {
-                    writer.WriteLine($"{variable.Name} {variable.Value.ToString()} {variable.LastChangedLine.ToString()}");
-                    Console.WriteLine($"{variable.Name} {variable.Value.ToString()} {variable.LastChangedLine.ToString()}");
-
-                }
-            }
-
-        }
         
-        
-        private class PrintTrace : DebuggerCommand
+
+   
+        private void PrintMem(ref Dictionary<string, VariableInfo> storage, ref TextWriter writer) 
         {
-
-            public PrintTrace(ref TextWriter writer, ref List<Call> stacktrace)
+            foreach (var variable in storage.Values)
             {
-                for (int i = stacktrace.Count; i > 0; i--)
-                {
-                    writer.WriteLine($"{stacktrace[i].realLine.ToString()} {stacktrace[i].FunctionName}");
-                    Console.WriteLine($"{stacktrace[i].realLine.ToString()} {stacktrace[i].FunctionName}");
-                }
-            }    
-            /*Формат вывода стектрейса:
-            {line} {function_name}
-            {line} {function_name}
-            {line} - номер строки с именем функции, номер именно строки с call
-            {function_name} - имя вызываемой функции
+                writer.WriteLine($"{variable.Name} {variable.Value.ToString()} {variable.LastChangedLine.ToString()}");
+                Console.WriteLine($"{variable.Name} {variable.Value.ToString()} {variable.LastChangedLine.ToString()}");
 
-            Стектрейс расположен в порядке от последней вызванной функции до первой.*/
-        }
-
-
-        private class StepOver : DebuggerCommand
-        {
-            public StepOver(int debugLine) 
-            {
-                
             }
         }
         
-        private class Step : DebuggerCommand
+ 
+        private void PrintTrace(ref TextWriter writer, ref List<Call> stacktrace)
         {
-            public Step(int debugLine) 
+            for (var i = stacktrace.Count; i > 0; i--)
             {
+                writer.WriteLine($"{stacktrace[i].realLine.ToString()} {stacktrace[i].FunctionName}");
+                Console.WriteLine($"{stacktrace[i].realLine.ToString()} {stacktrace[i].FunctionName}");
+            }
+        }  
+
+        
+        private void AddBreakOnLine(int stopLine)
+        {
+            stopLineSequence.Add(stopLine);
+        }
+
+
+        private void Step(int currentLine)
+        {
+            RunCommand(GetCommandByLine(currentLine), currentLine);
+        }
+
+        private void StepOver(int currentLine)
+        {
+            var cmd = GetCommandByLine(currentLine);
+            if (cmd is Call)
+            {
+                lastRunnedLine++;
+            }
+            else
+            {
+                RunCommand(GetCommandByLine(currentLine), currentLine);
+
             }
         }
 
-        private class AddBreakLine : DebuggerCommand
-        {
-            private int breakLine;
-            public AddBreakLine(int breakLine) 
-            {
-                this.breakLine = breakLine;
-            }
-        }
 
-        private class Run : DebuggerCommand
+        private Command GetCommandByLine(int line)
         {
-            public Run()
+            if (line > _interpretCommands.Count) throw new Exception("Превышение допустимого");
+            foreach (var cmd in _interpretCommands.Where(cmd => cmd.RealLine == line))
             {
+                return cmd;
             }
-        }
 
+            throw new NotFoundException(_writer);
+        }
         
         public void AddCommandToMemory(string command, int line)
         {
@@ -305,11 +295,22 @@ namespace KizhiPart3
         }
 
 
-        private void RunCommand(Command command)
+        private void RunCommand(Command command, int line)
         {
+            
             try
             {
-                command.Do();
+                if (!stopLineSequence.Contains(line))
+                {
+                    isRunning = true;
+                    command.Do();
+                    lastRunnedLine = line;
+                    stopLineSequence.Remove(line);
+                }
+                else
+                {
+                    isRunning = false;
+                }
             }
             catch (NotFoundException e)
             {
@@ -323,6 +324,8 @@ namespace KizhiPart3
             Console.WriteLine("Переменная отсутствует в памяти");
 
         }
+        
+        
 
 
         private Command Switch(string[] parsedCommand, int line)
@@ -368,16 +371,18 @@ namespace KizhiPart3
             } 
         }
 
-        private void RunCommands(LinkedList<Command> commands)
+        private void RunCommands(LinkedList<Command> commands, int line)
         {
             foreach (var command in commands)
             {
-                RunCommand(command);
+                RunCommand(command, line);
             }
         }
+
+        private int lastRunnedLine = 0;
         
 
-        private void RunFromMemory()
+        private void RunFromMemory(int line)
         {
             foreach (var interpretCommand in _interpretCommands)
             {
@@ -391,22 +396,22 @@ namespace KizhiPart3
                         if (functionCommand is Call callingInnerFunction) // да, поддерживаем только один уровень вложенности 
                         {
                             var innerFunction = _functionList[callingInnerFunction.FunctionName];
-                            RunCommands(innerFunction);
+                            RunCommands(innerFunction, line);
 
                             if (callingInnerFunction.FunctionName == call.FunctionName) // рекурсия(неполноценная)
                             {
                                 while (true)
                                 {
-                                    RunCommands(innerFunction);
+                                    RunCommands(innerFunction, line);
                                 }
                             }
                         }
-                        RunCommand(functionCommand);
+                        RunCommand(functionCommand, line);
                     }
                 }
                 else
                 {
-                    RunCommand(interpretCommand);
+                    RunCommand(interpretCommand, line);
                 }
                 
             }
@@ -414,42 +419,39 @@ namespace KizhiPart3
 
 
         
-
-        private DebuggerCommand DebuggerSwitch(string[] command, int line)
+        private void DebuggerSwitch(string[] command, int line)
         {
-            DebuggerCommand currentCommand;
+            
             switch (command[0])
             {
                 case "add":
-                    currentCommand = new AddBreakLine(line);
+                    AddBreakOnLine(line);
                     break;
                 case "step":
                     if (command.Length == 1) // step
-                        currentCommand = new Step(line);
+                        Step(line);
                     else //step over
-                        currentCommand = new StepOver(line);
+                        StepOver(line);
                     break;
                 case "print":
                     switch (command[1])
                     {
                         case "mem":
-                            currentCommand = new PrintMem(ref _storage, ref _writer);
+                            PrintMem(ref _storage, ref _writer);
                             break;
                         case "trace":
-                            currentCommand = new PrintTrace(ref _writer, ref stacktrace);
+                            PrintTrace(ref _writer, ref stacktrace);
                             break;
                         default:
                             throw new Exception("Не найдена команда дебаггера");
                     }
                     break;
                 case "run":
-                    currentCommand = new Run(); 
+                    RunFromMemory(line); 
                     break;
                 default:
                     throw new Exception("Не найдена команда деббагера");
             }
-
-            return currentCommand;
         }
 
         public void DebugInterpret(string command, int line=0) // убрать параметр у всех классов дебага
@@ -475,29 +477,22 @@ namespace KizhiPart3
 
                 if (isDebugMode)
                 {
+                    
                     DebugInterpret(cmd);
                     // добавялем с помощью эдд все точки остановы
                     // если ран, запускаем, пока текущий лайн меньше записанного лайна
                     // 
                 }
                 
-                if (command == "end set code")
+                
+                if (cmd == "end set code")
                 {
                     isDebugMode = true;
                 }
 
-                
-                if (isRunning)
-                {
-                    RunFromMemory();
-                }
-                
-                
             }
 
             _storage.Clear();
-            _functionList.Clear();
-
         }
     }
 }
