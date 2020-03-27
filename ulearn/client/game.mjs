@@ -27,8 +27,8 @@ class Ship {
         this.items = gameState.goods;
     }
 
-    isInTradePort() {
-        const portsArray = portsCoordinates.filter(port => this.weAreIn(port));
+    isInTradePort(gameState) {
+        const portsArray = gameState.ports.filter(port => port.isHome && this.weAreIn(port));
         return !!portsArray;
     }
 
@@ -65,7 +65,7 @@ class Ship {
     }
 
     needSale(gameState) {
-        return ship.isInTradePort() && ship.weAreIn(findOptimalPort(gameState.ports))
+        return ship.isInTradePort(gameState) && ship.weAreIn(findOptimalPort(gameState.ports))
     }
 
     freeSpaceInShip() {
@@ -253,17 +253,25 @@ export function startGame(levelMap, gameState) {
 }
 
 
+function isInTradePortFake(gameState) {
+    const portsArray = gameState.ports.filter(port => !port.isHome && isEqualPosition(gameState.ship, port));
+    return !!portsArray;
+}
+
+function isEqualPosition(obj1, obj2) {
+    return obj1.x === obj2.x && obj1.y === obj2.y;
+}
+
 export function getNextCommand(gameState) {
     let command;
     ship.refreshShipState(gameState.ship);
     if (ship.isHomePort() && needLoadProduct(gameState)) {
         const product = getProductForLoad(gameState);
         command = `LOAD ${product.name} ${product.amount}`
-    } else if (ship.needSale(gameState)) {
+    } else if (isInTradePortFake(gameState) && ship.needSale(gameState)) {
         const product = getProductForSale();
-        console.log(gameState.ship)
-        console.log(ship.isInTradePort())
-        console.log(portsCoordinates)
+        console.log(isEqualPosition(ship, gameState.ports[1]))
+        //console.log(gameState.ports)
         command = `SELL ${product.name} ${product.amount}`
     } else {
         command = goto(gameState);
