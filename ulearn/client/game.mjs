@@ -5,7 +5,7 @@ let homePort = {};
 let ship;
 let map = [[]];
 let lenToPorts = {};
-let productVolume = {};
+let productDesc = {};
 
 
 class Ship {
@@ -69,12 +69,12 @@ class Ship {
         return 'W'
     }
 
-    needSale(gameState) {
-        return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort(gameState))
+    needSale() {
+        return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort())
     }
 
     getFreeSpaceInShip() {
-        return ship.items.reduce((acc, cur) => acc - productVolume[cur.name] * cur.amount, MAX_LOAD_SHIP);
+        return ship.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, MAX_LOAD_SHIP);
     }
 }
 
@@ -181,6 +181,7 @@ function parseMap(levelMap) {
     for (let x = 0; x < matrix.length; x++) {
         matrix[x] = matrix[x].split("")
     }
+
     const width = matrix.length;
     const height = matrix[0].length
     let matrixAdjasment = matrixArray(width, height);
@@ -218,14 +219,14 @@ export function startGame(levelMap, gameState) {
     homePort = {};
     map = [[]];
     lenToPorts = {};
-    productVolume = {};
+    productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
     portsCoordinates = []
 
-    for (let i = 0; i < gameState.ports.length; i++) { // дополним наш массив ценами
-        const currentPortId = gameState.ports[i].portId;
-        gameState.ports[i].prices = gameState.prices.filter(price => price.portId === currentPortId)[0]
+    for (let gameStatePort of gameState.ports) {
+        const currentPortId = gameStatePort.portId;
+        gameStatePort.prices = gameState.prices.filter(price => price.portId === currentPortId)[0]
     }
 
     const homePortArray = gameState.ports.filter(port => port.isHome)[0];
@@ -236,7 +237,7 @@ export function startGame(levelMap, gameState) {
         portsCoordinates.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
 
     gameState.goodsInPort.forEach(good => {
-        productVolume[good.name] = good.volume;
+        productDesc[good.name] = good.volume;
     });
 }
 
@@ -258,10 +259,6 @@ export function getNextCommand(gameState) {
     return command;
 }
 
-
-function getPriceByPortId(prices, portId) {
-    return prices.filter(price => price.portId === portId)[0];
-}
 
 function getProductForLoad(goodsInPort) {
     const freeSpaceShip = ship.getFreeSpaceInShip();
@@ -296,7 +293,7 @@ function getProductForLoad(goodsInPort) {
         }
     });
 
-    const profitObj = reduceIf(products, profitToPort)
+    const profitObj = maxElement(products, profitToPort)
     return profitObj && profitObj.product;
 }
 
@@ -305,9 +302,9 @@ function profitToPort(obj) {
     return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
 }
 
-function reduceIf(array, callback, reduceDefaultValue=null) {
+function maxElement(array, comparator, reduceDefaultValue=null) {
     const product = array.reduce((obj1, obj2) => {
-        if (callback(obj1) > callback(obj2)) {
+        if (comparator(obj1) > comparator(obj2)) {
             return obj1;
         }
         return obj2;
@@ -318,7 +315,7 @@ function reduceIf(array, callback, reduceDefaultValue=null) {
 
 function getProductForSale() {
     const priceWithAmount = (product) => product && [product.name] * product.amount;
-    const product = reduceIf(ship.items, priceWithAmount);
+    const product = maxElement(ship.items, priceWithAmount);
 
     return product;
 }
@@ -337,26 +334,22 @@ function profitOnSale(port) {
 }
 
 
-function findOptimalPort({_, ports, prices}) {
-    // portsCoordinates.push(homePort);
-    // console.log(portsCoordinates)
-    //const products = re
+function findOptimalPort() {
     const portes = portsCoordinates;
     portes.push(homePort)
-
-    //return reduceIf(portes, profitOnSale, portes[0])
+    //return maxElement(portes, profitOnSale, homePort)
     return portes.reduce((max_port, port) => {
-        if (profitOnSale(port) > profitOnSale(max_port)) {
+        if (profitOnSale(max_port) < profitOnSale(port)) {
             return port;
         } else {
             return max_port;
         }
-    }, ports[0]);
+    }, homePort);
 }
 
 
-function goto(gameState) {
-    const optimalPort = findOptimalPort(gameState);
+function goto() {
+    const optimalPort = findOptimalPort();
     if (optimalPort === undefined) return 'WAIT';
 
     let command;
