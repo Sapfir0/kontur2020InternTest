@@ -305,13 +305,13 @@ function profitToPort(obj) {
     return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
 }
 
-function reduceIf(array, callback) {
+function reduceIf(array, callback, reduceDefaultValue=null) {
     const product = array.reduce((obj1, obj2) => {
         if (callback(obj1) > callback(obj2)) {
             return obj1;
         }
         return obj2;
-    }, null);
+    }, reduceDefaultValue);
     return product;
 }
 
@@ -324,11 +324,12 @@ function getProductForSale() {
 }
 
 
-function profitOnSale(port, price) {
-    if (port.isHome) return 0;
+function profitOnSale(port) {
+    if (port instanceof HomePort) return 0;
+    if (!port.prices) return 0;
 
     const profit = ship.items.map((val, i, arr) =>
-        (price[val.name] * val.amount) / Maths.distance(ship, port))
+        (port.prices[val.name] * val.amount) / Maths.distance(ship, port))
 
     const maxProfit = profit.reduce((a, b) => a + b, 0);
 
@@ -339,11 +340,13 @@ function profitOnSale(port, price) {
 function findOptimalPort({_, ports, prices}) {
     // portsCoordinates.push(homePort);
     // console.log(portsCoordinates)
+    //const products = re
+    const portes = portsCoordinates;
+    portes.push(homePort)
 
-    return ports.reduce((max_port, port) => {
-        const profitFromCurrentPort = profitOnSale(port, getPriceByPortId(prices, port.portId));
-        const profitFromMaxPort = profitOnSale(max_port, getPriceByPortId(prices, max_port.portId));
-        if (profitFromCurrentPort > profitFromMaxPort) {
+    //return reduceIf(portes, profitOnSale, portes[0])
+    return portes.reduce((max_port, port) => {
+        if (profitOnSale(port) > profitOnSale(max_port)) {
             return port;
         } else {
             return max_port;
