@@ -336,12 +336,8 @@ function findOptimalPort({_, ports, prices}) {
 
 
 function goto(gameState) {
-    const optimalPort = findOptimalPort(gameState);
-
-    const currentLocation = (ship.x, ship.y);
-    if (currentLocation) {
-
-    }
+    const optimalPort = findOptimalPort(gameState.ports);
+    if (optimalPort === undefined) return 'WAIT';
 
     let command;
     if (ship.y > optimalPort.y) {
