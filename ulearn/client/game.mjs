@@ -3,8 +3,10 @@ const MAX_LOAD_SHIP = 368;
 let portsCoordinates = [];
 let homePort = {};
 let ship;
-let map = [ []];
+let map = [[]];
 let lenToPorts = {};
+let productVolume = {};
+
 
 class Ship {
     x = 0;
@@ -16,7 +18,7 @@ class Ship {
     }
 
     getLocation() {
-        const loc = {x:this.x, y:this.y}
+        const loc = {x: this.x, y: this.y}
         return loc;
     }
 
@@ -71,8 +73,8 @@ class Ship {
         return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort(gameState))
     }
 
-    freeSpaceInShip() {
-        return ship.items.reduce((acc, cur) => acc - productVolume[cur.name]*cur.amount, MAX_LOAD_SHIP);
+    getFreeSpaceInShip() {
+        return ship.items.reduce((acc, cur) => acc - productVolume[cur.name] * cur.amount, MAX_LOAD_SHIP);
     }
 }
 
@@ -80,6 +82,7 @@ class Port {
     id;
     x;
     y;
+
     constructor(id, x, y) {
         this.id = id;
         this.x = x;
@@ -93,6 +96,7 @@ class HomePort extends Port {
 
 class TradingPort extends Port {
     prices;
+
     constructor(id, x, y, prices) {
         super(id, x, y);
         this.prices = prices;
@@ -104,84 +108,67 @@ class Maths {
         return Math.abs(obj1.x - obj2.x) + Math.abs(obj1.y - obj2.y);
     }
 
-    static maxWithAmount(priceOnCurrentPort, obj1, obj2) {
-        const priceWithAmount = (product) => product && console.log("foo") && (priceOnCurrentPort[product.name]*product.amount);
-        const price1 = priceWithAmount(obj1);
-        const price2 = priceWithAmount(obj2);
-        if (price1 > price2) return obj1; else return obj2;
+    static productProfit(priceInPort, product, len) {
+        return priceInPort[product.name] * product.amount / len;
     }
 
-    static priceWithAmount(product) {
-        return product && product.max_price * product.amount;
+    static amountInShip(freeSpaceShip, product) {
+        return  Math.min(Math.floor(freeSpaceShip / product.volume), product.amount);
 
     }
 }
 
-function needLoadProduct(gameState) {
-    const freeSpace = ship.freeSpaceInShip();
-    const thereLoad = freeSpace < MAX_LOAD_SHIP;
-    if (thereLoad) {
-        const port = findOptimalPort(gameState.ports);
-        //console.log(port)
-        const price = port.prices;
-        return (freeSpace >= 50) && gameState.goodsInPort.reduce(
-            (acc, good) => acc || (price.hasOwnProperty(good.name) && good.volume <= freeSpace),
-            false);
-    }
-    return gameState.goodsInPort.length !== 0;
-}
 
 class MapObject {
-    reachable;
     x;
     y;
     isHomePort;
     isTradePort;
-    constructor(x,y,reachable,isHomePort=false, isTradePort=false) {
+
+    constructor(x, y, isHomePort = false, isTradePort = false) {
         this.x = x;
         this.y = y;
-        this.reachable = reachable;
         this.isHomePort = isHomePort;
         this.isTradePort = isTradePort;
     }
 }
 
 
-
 class Node {
-    nodeLeft = null;
-    nodeRight = null;
-    data;
+    childrens = []
+    mapObject;
     parent;
-    constructor(data, parent=null) {
-        this.data = data;
+
+    constructor(mapObject, parent = null) {
+        this.mapObject = mapObject;
         this.parent = parent;
     }
 }
 
-function matrixArray(rows,columns){
+function matrixArray(rows, columns) {
     var arr = [];
-    for(var i=0; i<rows; i++){
+    for (var i = 0; i < rows; i++) {
         arr[i] = [];
-        for(var j=0; j<columns; j++){
+        for (var j = 0; j < columns; j++) {
             arr[i][j] = 0;//вместо i+j+1 пишем любой наполнитель. В простейшем случае - null
         }
     }
     return arr;
 }
+
 function createMapObject(symbol, x, y) {
     let mapObject;
     switch (symbol) {
         case "O": {
-            mapObject = new MapObject(x,y,false, true)
+            mapObject = new MapObject(x, y, false, true)
             break;
         }
         case "H": {
-            mapObject = new MapObject(x,y, true)
+            mapObject = new MapObject(x, y, true)
             break;
         }
         case "~": {
-            mapObject = new MapObject(x,y)
+            mapObject = new MapObject(x, y)
             break;
         }
     }
@@ -191,26 +178,26 @@ function createMapObject(symbol, x, y) {
 
 function parseMap(levelMap) {
     const matrix = levelMap.split('\n');
-    for (let x=0; x<matrix.length; x++) {
+    for (let x = 0; x < matrix.length; x++) {
         matrix[x] = matrix[x].split("")
     }
     const width = matrix.length;
     const height = matrix[0].length
     let matrixAdjasment = matrixArray(width, height);
     //console.log(matrixAdjasment)
-    for (let x=1; x<matrix.length-1; x++) {
-        for (let y=1; y<matrix[x].length-1; y++) {
+    for (let x = 1; x < matrix.length - 1; x++) {
+        for (let y = 1; y < matrix[x].length - 1; y++) {
             const currentCell = matrix[x][y];
-            const leftCell = new MapObject(x-1,y)
-            const rightCell = new MapObject(x+1,y);
-            const downCell = new MapObject(x, y-1);
-            const upCell = new MapObject(x, y+1);
+            const leftCell = new MapObject(x - 1, y)
+            const rightCell = new MapObject(x + 1, y);
+            const downCell = new MapObject(x, y - 1);
+            const upCell = new MapObject(x, y + 1);
             const neighbours = [leftCell, rightCell, downCell, upCell];
             if (currentCell !== "#") {
-                const mapObject = createMapObject(currentCell, x,y)
+                const mapObject = createMapObject(currentCell, x, y)
                 let node = new Node(mapObject)
-                for (let i=0; i<neighbours.length; i++) {
-                    if(matrix[neighbours[i].x][neighbours[i].y] !== "#") {
+                for (let i = 0; i < neighbours.length; i++) {
+                    if (matrix[neighbours[i].x][neighbours[i].y] !== "#") {
                         const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
                         const childrens = new Node(innerMapObject)
                         childrens.parent = node;
@@ -223,15 +210,20 @@ function parseMap(levelMap) {
     }
     return matrixAdjasment;
 }
-let productVolume;
 
 export function startGame(levelMap, gameState) {
     //console.log(levelMap)
     //parseMap(levelMap);
-
+    portsCoordinates = [];
+    homePort = {};
+    map = [[]];
+    lenToPorts = {};
+    productVolume = {};
     ship = new Ship(gameState.ship);
+    homePort = {}
+    portsCoordinates = []
 
-    for (let i=0; i<gameState.ports.length; i++) { // дополним наш массив ценами
+    for (let i = 0; i < gameState.ports.length; i++) { // дополним наш массив ценами
         const currentPortId = gameState.ports[i].portId;
         gameState.ports[i].prices = gameState.prices.filter(price => price.portId === currentPortId)[0]
     }
@@ -243,7 +235,6 @@ export function startGame(levelMap, gameState) {
     portsCoordinatesArray.forEach(port =>
         portsCoordinates.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
 
-    productVolume = {};
     gameState.goodsInPort.forEach(good => {
         productVolume[good.name] = good.volume;
     });
@@ -255,7 +246,7 @@ export function getNextCommand(gameState) {
     ship.refreshShipState(gameState.ship);
 
     if (ship.canLoadProduct(gameState)) {
-        const product = getProductForLoad(gameState);
+        const product = getProductForLoad(gameState.goodsInPort);
         if (product)
             command = `LOAD ${product.name} ${product.amount}`
     } else if (ship.needSale(gameState)) {
@@ -272,18 +263,18 @@ function getPriceByPortId(prices, portId) {
     return prices.filter(price => price.portId === portId)[0];
 }
 
-function getProductForLoad({goodsInPort, prices, ports, }) {
-    const freeSpaceShip = ship.freeSpaceInShip( );
-    const tradingPorts = ports.filter(port => !port.isHome);
-    const products = tradingPorts.map((port, index) => {
-        const price = getPriceByPortId(prices, port.portId);
+function getProductForLoad(goodsInPort) {
+    const freeSpaceShip = ship.getFreeSpaceInShip();
+
+    const products = portsCoordinates.map((port, index) => {
+        const price = port.prices;
         if (!price) return null;
         let optimalProduct = null;
         let max = 0;
         for (const product of goodsInPort) {
             if (price.hasOwnProperty(product.name)) {
-                const amountInShip = Math.min(Math.floor(freeSpaceShip / product.volume), product.amount);
-                const profit = price[product.name]*amountInShip;
+                const amountInShip = Maths.amountInShip(freeSpaceShip, product);
+                const profit = price[product.name] * amountInShip;
                 if (max < profit) {
                     optimalProduct = {
                         name: product.name,
@@ -299,24 +290,24 @@ function getProductForLoad({goodsInPort, prices, ports, }) {
             port, index
         }
     });
-    products.forEach(obj => {
-        if (obj && obj.product && !lenToPorts.hasOwnProperty(obj.port.portId))
-            lenToPorts[obj.port.portId] = Maths.distance(obj.port, homePort); // lazy init
+    products.forEach(products => {
+        if (products && products.product && !lenToPorts.hasOwnProperty(products.port.portId)) {
+            lenToPorts[products.port.portId] = Maths.distance(products.port, homePort);
+        }
     });
-    const profitToPort = (obj) => obj && obj.product && productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
-    const profitObj = products.reduce((obj1, obj2, index) => {
-        return (profitToPort(obj1) > profitToPort(obj2) ? obj1 : obj2);
-    }, null);
+
+    const profitObj = reduceIf(products, profitToPort)
     return profitObj && profitObj.product;
 }
-function productProfit(priceInPort, product, len) {
-    return priceInPort[product.name]*product.amount / len;
+
+
+function profitToPort(obj) {
+    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
 }
 
-function getProductForSale() {
-    const priceWithAmount = (product) => product && [product.name]*product.amount;
-    const product = ship.items.reduce((obj1, obj2) => {
-        if (priceWithAmount(obj1) > priceWithAmount(obj2)) {
+function reduceIf(array, callback) {
+    const product = array.reduce((obj1, obj2) => {
+        if (callback(obj1) > callback(obj2)) {
             return obj1;
         }
         return obj2;
@@ -325,18 +316,30 @@ function getProductForSale() {
 }
 
 
-function profitOnSale(port, price) {
-    let profit = 0;
-    if (!port.isHome && price) {
-        profit = ship.items.map((val, i, arr) =>
-            (price[val.name]*val.amount) / Maths.distance(ship, port)).reduce((a, b) => a+b, 0);
-    }
-    return profit;
+function getProductForSale() {
+    const priceWithAmount = (product) => product && [product.name] * product.amount;
+    const product = reduceIf(ship.items, priceWithAmount);
+
+    return product;
 }
 
 
+function profitOnSale(port, price) {
+    if (port.isHome) return 0;
+
+    const profit = ship.items.map((val, i, arr) =>
+        (price[val.name] * val.amount) / Maths.distance(ship, port))
+
+    const maxProfit = profit.reduce((a, b) => a + b, 0);
+
+    return maxProfit;
+}
+
 
 function findOptimalPort({_, ports, prices}) {
+    // portsCoordinates.push(homePort);
+    // console.log(portsCoordinates)
+
     return ports.reduce((max_port, port) => {
         const profitFromCurrentPort = profitOnSale(port, getPriceByPortId(prices, port.portId));
         const profitFromMaxPort = profitOnSale(max_port, getPriceByPortId(prices, max_port.portId));
@@ -349,28 +352,24 @@ function findOptimalPort({_, ports, prices}) {
 }
 
 
-
-
 function goto(gameState) {
     const optimalPort = findOptimalPort(gameState);
     if (optimalPort === undefined) return 'WAIT';
 
-
     let command;
     if (ship.y > optimalPort.y) {
-            command = ship.moveToNorth()
-
+        command = ship.moveToNorth()
     }
     if (ship.y < optimalPort.y) {
-            command = ship.moveToSouth()
+        command = ship.moveToSouth()
 
     }
     if (ship.x > optimalPort.x) {
-            command = ship.moveToWest()
+        command = ship.moveToWest()
 
     }
     if (ship.x < optimalPort.x) {
-            command = ship.moveToEast()
+        command = ship.moveToEast()
     }
     if (command === undefined) {
         command = ship.wait()
@@ -380,18 +379,18 @@ function goto(gameState) {
 
 
 class QElement {
-    constructor(element, priority)
-    {
+    constructor(element, priority) {
         this.element = element;
         this.priority = priority;
     }
 }
+
 class PriorityQueue {
-    constructor()
-    {
+    constructor() {
         this.items = [];
     }
-    enqueue(element, priority)    {
+
+    enqueue(element, priority) {
         // creating object from queue element
         var qElement = new QElement(element, priority);
         var contain = false;
@@ -410,33 +409,35 @@ class PriorityQueue {
             this.items.push(qElement);
         }
     }
-    dequeue()    {
+
+    dequeue() {
         // return the dequeued element and remove it.
         // if the queue is empty returns Underflow
         if (this.isEmpty())
             return "Underflow";
         return this.items.shift();
     }
-    front()    {
+
+    front() {
         // returns the highest priority element in the Priority queue without removing it.
         if (this.isEmpty())
             return "No elements in Queue";
         return this.items[0];
     }
-    rear()
-    {
+
+    rear() {
         // returns the lowest priorty element of the queue
         if (this.isEmpty())
             return "No elements in Queue";
         return this.items[this.items.length - 1];
     }
-    isEmpty()
-    {
+
+    isEmpty() {
         // return true if the queue is empty.
         return this.items.length === 0;
     }
-    printPQueue()
-    {
+
+    printPQueue() {
         var str = "";
         for (var i = 0; i < this.items.length; i++)
             str += this.items[i].element + " ";
