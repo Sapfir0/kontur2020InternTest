@@ -4,7 +4,6 @@ let portsCoordinates = [];
 let homePort = {};
 let ship;
 let map = [ []];
-
 let lenToPorts = {};
 
 class Ship {
@@ -27,8 +26,8 @@ class Ship {
         this.items = gameState.goods;
     }
 
-    isInTradePort(gameState) {
-        const portsArray = gameState.ports.filter(port => port.isHome && this.weAreIn(port));
+    isInTradePort() {
+        const portsArray = portsCoordinates.filter(port => this.weAreIn(port));
         return !!portsArray;
     }
 
@@ -42,6 +41,10 @@ class Ship {
 
     notHaveItems() {
         return ship.items.length > 0
+    }
+
+    canLoadProduct(gameState) {
+        return !ship.notHaveItems() && ship.isHomePort(gameState.ship);
     }
 
     moveToSouth() {
@@ -65,11 +68,7 @@ class Ship {
     }
 
     needSale(gameState) {
-        return ship.isInTradePort(gameState) && ship.weAreIn(findOptimalPort(gameState.ports))
-    }
-
-    freeSpaceInShip() {
-        return ship.items.reduce((acc, cur) => acc - productVolume[cur.name]*cur.amount, MAX_LOAD_SHIP);
+        return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort(gameState))
     }
 
 }
@@ -129,15 +128,16 @@ function needLoadProduct(gameState) {
     return gameState.goodsInPort.length !== 0;
 }
 
-
 class MapObject {
+    reachable;
     x;
     y;
     isHomePort;
     isTradePort;
-    constructor(x,y,isHomePort=false, isTradePort=false) {
+    constructor(x,y,reachable,isHomePort=false, isTradePort=false) {
         this.x = x;
         this.y = y;
+        this.reachable = reachable;
         this.isHomePort = isHomePort;
         this.isTradePort = isTradePort;
     }
@@ -146,11 +146,12 @@ class MapObject {
 
 
 class Node {
-    childrens = []
-    mapObject;
+    nodeLeft = null;
+    nodeRight = null;
+    data;
     parent;
-    constructor(mapObject, parent=null) {
-        this.mapObject = mapObject;
+    constructor(data, parent=null) {
+        this.data = data;
         this.parent = parent;
     }
 }
@@ -165,7 +166,6 @@ function matrixArray(rows,columns){
     }
     return arr;
 }
-
 function createMapObject(symbol, x, y) {
     let mapObject;
     switch (symbol) {
@@ -188,17 +188,13 @@ function createMapObject(symbol, x, y) {
 
 function parseMap(levelMap) {
     const matrix = levelMap.split('\n');
-
     for (let x=0; x<matrix.length; x++) {
         matrix[x] = matrix[x].split("")
     }
-
     const width = matrix.length;
     const height = matrix[0].length
-
     let matrixAdjasment = matrixArray(width, height);
     //console.log(matrixAdjasment)
-
     for (let x=1; x<matrix.length-1; x++) {
         for (let y=1; y<matrix[x].length-1; y++) {
             const currentCell = matrix[x][y];
@@ -210,7 +206,6 @@ function parseMap(levelMap) {
             if (currentCell !== "#") {
                 const mapObject = createMapObject(currentCell, x,y)
                 let node = new Node(mapObject)
-
                 for (let i=0; i<neighbours.length; i++) {
                     if(matrix[neighbours[i].x][neighbours[i].y] !== "#") {
                         const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
@@ -221,22 +216,20 @@ function parseMap(levelMap) {
                 }
                 matrixAdjasment[x][y] = node;
             }
-
         }
     }
     return matrixAdjasment;
 }
 
-let productVolume;
-
 export function startGame(levelMap, gameState) {
-    const newmap = parseMap(levelMap);
-    //console.log(newmap)
+    console.log(levelMap)
+    //parseMap(levelMap);
+
     ship = new Ship(gameState.ship);
 
-    for (let i=0; i<gameState.ports.length; i++) { // дополним наш массив ценами
+    for (let i=0; i<gameState.ports.length; i++) { // дополним наш массив
         const currentPortId = gameState.ports[i].portId;
-        gameState.ports[i].prices = gameState.prices.filter(price => price.portId === currentPortId)[0]
+        gameState.ports[i].prices = getPriceByPortId(gameState.prices, currentPortId);
     }
 
     const homePortArray = gameState.ports.filter(port => port.isHome)[0];
@@ -246,38 +239,23 @@ export function startGame(levelMap, gameState) {
     portsCoordinatesArray.forEach(port =>
         portsCoordinates.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
 
-    productVolume = {};
-    gameState.goodsInPort.forEach(good => {
-        productVolume[good.name] = good.volume;
-    });
 }
 
-
-function isInTradePortFake(gameState) {
-    const portsArray = gameState.ports.filter(port => !port.isHome && isEqualPosition(gameState.ship, port));
-    return !!portsArray;
-}
-
-function isEqualPosition(obj1, obj2) {
-    return obj1.x === obj2.x && obj1.y === obj2.y;
-}
 
 export function getNextCommand(gameState) {
-    let command;
+    let command = 'WAIT';
     ship.refreshShipState(gameState.ship);
-    if (ship.isHomePort() && needLoadProduct(gameState)) {
+
+    if (ship.canLoadProduct(gameState)) {
         const product = getProductForLoad(gameState);
-        command = `LOAD ${product.name} ${product.amount}`
-    } else if (isInTradePortFake(gameState) && ship.needSale(gameState)) {
+        if (product)
+            command = `LOAD ${product.name} ${product.amount}`
+    } else if (ship.needSale(gameState)) {
         const product = getProductForSale();
-        console.log(isEqualPosition(ship, gameState.ports[1]))
-        //console.log(gameState.ports)
         command = `SELL ${product.name} ${product.amount}`
     } else {
         command = goto(gameState);
     }
-    console.log(command)
-    console.log(ship.getLocation().x, ship.getLocation().y)
     return command;
 }
 
@@ -286,48 +264,38 @@ function getPriceByPortId(prices, portId) {
     return prices.filter(price => price.portId === portId)[0];
 }
 
-function getProductForLoad({goodsInPort, prices, ports, }) {
-    const freeSpaceShip = ship.freeSpaceInShip( );
-    const tradingPorts = ports.filter(port => !port.isHome);
+function getProductForLoad({goodsInPort, prices, }) {
 
-    const products = tradingPorts.map((port, index) => {
-        const price = getPriceByPortId(prices, port.portId);
-        if (!price) return null;
-        let optimalProduct = null;
-        let max = 0;
-        for (const product of goodsInPort) {
-            if (price.hasOwnProperty(product.name)) {
-                const amountInShip = Math.min(Math.floor(freeSpaceShip / product.volume), product.amount);
-                const profit = price[product.name]*amountInShip;
-                if (max < profit) {
-                    optimalProduct = {
-                        name: product.name,
-                        amount: amountInShip
-                    };
-                    max = profit;
-                }
-            }
-        }
+    const products = goodsInPort.map(good => {
         return {
-            product: optimalProduct,
-            priceInPort: price,
-            port, index
+            'name': good.name,
+            'max_price': Math.max(...prices.map(port_price => port_price[good.name])),
+            'amount': Math.floor(MAX_LOAD_SHIP / good.volume),
         }
     });
-    products.forEach(obj => {
-        if (obj && obj.product && !lenToPorts.hasOwnProperty(obj.port.portId))
-            lenToPorts[obj.port.portId] = Maths.distance(obj.port, homePort); // lazy init
-    });
-    const profitToPort = (obj) => obj && obj.product && productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
-    const profitObj = products.reduce((obj1, obj2, index) => {
-        return (profitToPort(obj1) > profitToPort(obj2) ? obj1 : obj2);
+
+
+    const optimalProduct = products.reduce((p, v) => {
+        return ( Maths.priceWithAmount(p) > Maths.priceWithAmount(v) ? p : v );
     }, null);
-    return profitObj && profitObj.product;
+    // let optimalProduct = {};
+    // for(let i=0; i<products.length -1; i++) {
+    //     console.log(optimalProduct)
+    //     console.log(products[i])
+    //     if (optimalProduct < products[i] || optimalProduct < products[i+1]) {
+    //         if (priceWithAmount(products[i]) > priceWithAmount(products[i+1])) {
+    //             optimalProduct = products[i];
+    //         }
+    //         else {
+    //             optimalProduct = products[i+1];
+    //         }
+    //     }
+    // }
+
+    console.log(optimalProduct)
+    return optimalProduct;
 }
 
-function productProfit(priceInPort, product, len) {
-    return priceInPort[product.name]*product.amount / len;
-}
 
 function getProductForSale() {
     const priceWithAmount = (product) => product && [product.name]*product.amount;
@@ -342,23 +310,20 @@ function getProductForSale() {
 
 
 function profitOnSale(port, price) {
-    if (!price) { return 0;}
-
-    const profit = ship.items.map((val, i, arr) =>
+    let profit = 0;
+    if (!port.isHome && price) {
+        profit = ship.items.map((val, i, arr) =>
             (price[val.name]*val.amount) / Maths.distance(ship, port)).reduce((a, b) => a+b, 0);
-
+    }
     return profit;
 }
 
 
 
-function findOptimalPort(ports) {
-    //ports = portsCoordinates
+function findOptimalPort({_, ports, prices}) {
     return ports.reduce((max_port, port) => {
-        // console.log(port)
-        // console.log(max_port)
-        const profitFromCurrentPort = profitOnSale(port, port.prices);
-        const profitFromMaxPort = profitOnSale(max_port, max_port.prices);
+        const profitFromCurrentPort = profitOnSale(port, getPriceByPortId(prices, port.portId));
+        const profitFromMaxPort = profitOnSale(max_port, getPriceByPortId(prices, max_port.portId));
         if (profitFromCurrentPort > profitFromMaxPort) {
             return port;
         } else {
@@ -371,37 +336,34 @@ function findOptimalPort(ports) {
 
 
 function goto(gameState) {
-    const optimalPort = findOptimalPort(gameState.ports);
-    if (optimalPort === undefined) return 'WAIT';
+    const optimalPort = findOptimalPort(gameState);
+
+    const currentLocation = (ship.x, ship.y);
+    if (currentLocation) {
+
+    }
 
     let command;
     if (ship.y > optimalPort.y) {
-        //if (isUnlockedWay(ship.x, ship.y-1)) {
             command = ship.moveToNorth()
-        //}
+
     }
     if (ship.y < optimalPort.y) {
-        //if (isUnlockedWay(ship.x, ship.y+1)) {
             command = ship.moveToSouth()
-        //}
+
     }
     if (ship.x > optimalPort.x) {
-        //if (isUnlockedWay(ship.x-1, ship.y)) {
             command = ship.moveToWest()
-        //}
+
     }
     if (ship.x < optimalPort.x) {
-        //if (isUnlockedWay(ship.x+1, ship.y)) {
             command = ship.moveToEast()
-        //}
     }
     if (command === undefined) {
         command = ship.wait()
     }
-    //console.log(optimalPort.x, optimalPort.y)
     return command;
 }
-
 
 
 class QElement {
@@ -411,18 +373,15 @@ class QElement {
         this.priority = priority;
     }
 }
-
 class PriorityQueue {
     constructor()
     {
         this.items = [];
     }
-
     enqueue(element, priority)    {
         // creating object from queue element
         var qElement = new QElement(element, priority);
         var contain = false;
-
         // iterating through the entire item array to add element at the correct location of the Queue
         for (var i = 0; i < this.items.length; i++) {
             if (this.items[i].priority > qElement.priority) {
@@ -432,15 +391,12 @@ class PriorityQueue {
                 break;
             }
         }
-
         // if the element have the highest priority
         // it is added at the end of the queue
         if (!contain) {
             this.items.push(qElement);
         }
     }
-
-
     dequeue()    {
         // return the dequeued element and remove it.
         // if the queue is empty returns Underflow
@@ -448,14 +404,12 @@ class PriorityQueue {
             return "Underflow";
         return this.items.shift();
     }
-
     front()    {
         // returns the highest priority element in the Priority queue without removing it.
         if (this.isEmpty())
             return "No elements in Queue";
         return this.items[0];
     }
-
     rear()
     {
         // returns the lowest priorty element of the queue
@@ -468,7 +422,6 @@ class PriorityQueue {
         // return true if the queue is empty.
         return this.items.length === 0;
     }
-
     printPQueue()
     {
         var str = "";
@@ -476,6 +429,4 @@ class PriorityQueue {
             str += this.items[i].element + " ";
         return str;
     }
-
-
 }
