@@ -65,6 +65,10 @@ class Ship {
         return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort(gameState.ports))
     }
 
+    freeSpaceInShip() {
+        return ship.items.reduce((acc, cur) => acc - productVolume[cur.name]*cur.amount, MAX_LOAD_SHIP);
+    }
+
 }
 
 class Port {
@@ -145,6 +149,24 @@ function matrixArray(rows,columns){
     return arr;
 }
 
+function createMapObject(symbol, x, y) {
+    let mapObject;
+    switch (symbol) {
+        case "O": {
+            mapObject = new MapObject(x,y,false, true)
+            break;
+        }
+        case "H": {
+            mapObject = new MapObject(x,y, true)
+            break;
+        }
+        case "~": {
+            mapObject = new MapObject(x,y)
+            break;
+        }
+    }
+    return mapObject;
+}
 
 
 function parseMap(levelMap) {
@@ -168,12 +190,14 @@ function parseMap(levelMap) {
             const downCell = new MapObject(x, y-1);
             const upCell = new MapObject(x, y+1);
             const neighbours = [leftCell, rightCell, downCell, upCell];
-            if (currentCell === "~") {
-                let node = new Node(new MapObject(x,y))
+            if (currentCell !== "#") {
+                const mapObject = createMapObject(currentCell, x,y)
+                let node = new Node(mapObject)
 
                 for (let i=0; i<neighbours.length; i++) {
-                    if(matrix[neighbours[i].x][neighbours[i].y] === "~") {
-                        const childrens = new Node(new MapObject(neighbours[i].x, neighbours[i].y))
+                    if(matrix[neighbours[i].x][neighbours[i].y] !== "#") {
+                        const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
+                        const childrens = new Node(innerMapObject)
                         childrens.parent = node;
                         node.childrens.push(childrens)
                     }
@@ -195,7 +219,6 @@ export function startGame(levelMap, gameState) {
         const currentPortId = gameState.ports[i].portId;
         gameState.ports[i].prices = gameState.prices.filter(price => price.portId === currentPortId)[0]
     }
-
 
     const homePortArray = gameState.ports.filter(port => port.isHome)[0];
     const portsCoordinatesArray = gameState.ports.filter(port => !port.isHome);
