@@ -36,6 +36,26 @@ function getDefaultMap () {
 `.trim();
 }
 
+addSelectorListener();
+function addSelectorListener(){
+    const selector = document.querySelector('.level-select');
+
+    selector.addEventListener('change', () => {
+        const levelNumber = selector.value;
+        const level = levels[levelNumber];
+        if (!level) {
+            return;
+        }
+        const map = level.map;
+        const state = level.state;
+
+        removeTextOverMap();
+        renderMap(map);
+        renderInterface(state);
+        renderTextOverMap('Уровень ' + levelNumber);
+    });
+}
+
 function addListeners () {
     const form = document.querySelector('.level-select-form');
 

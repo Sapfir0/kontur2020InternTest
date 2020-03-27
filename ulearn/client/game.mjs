@@ -1,6 +1,6 @@
 const MAX_LOAD_SHIP = 368;
 
-let portsCoordinates = [];
+let tradePorts = [];
 let homePort = {};
 let ship;
 let map = [[]];
@@ -29,7 +29,7 @@ class Ship {
     }
 
     isInTradePort() {
-        const portsArray = portsCoordinates.filter(port => this.weAreIn(port));
+        const portsArray = tradePorts.filter(port => this.weAreIn(port));
         return !!portsArray;
     }
 
@@ -135,7 +135,7 @@ class MapObject {
 
 
 class Node {
-    childrens = []
+    childrens = [];
     mapObject;
     parent;
 
@@ -176,53 +176,20 @@ function createMapObject(symbol, x, y) {
 }
 
 
-function parseMap(levelMap) {
-    const matrix = levelMap.split('\n');
-    for (let x = 0; x < matrix.length; x++) {
-        matrix[x] = matrix[x].split("")
-    }
 
-    const width = matrix.length;
-    const height = matrix[0].length
-    let matrixAdjasment = matrixArray(width, height);
-    //console.log(matrixAdjasment)
-    for (let x = 1; x < matrix.length - 1; x++) {
-        for (let y = 1; y < matrix[x].length - 1; y++) {
-            const currentCell = matrix[x][y];
-            const leftCell = new MapObject(x - 1, y)
-            const rightCell = new MapObject(x + 1, y);
-            const downCell = new MapObject(x, y - 1);
-            const upCell = new MapObject(x, y + 1);
-            const neighbours = [leftCell, rightCell, downCell, upCell];
-            if (currentCell !== "#") {
-                const mapObject = createMapObject(currentCell, x, y)
-                let node = new Node(mapObject)
-                for (let i = 0; i < neighbours.length; i++) {
-                    if (matrix[neighbours[i].x][neighbours[i].y] !== "#") {
-                        const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
-                        const childrens = new Node(innerMapObject)
-                        childrens.parent = node;
-                        node.childrens.push(childrens)
-                    }
-                }
-                matrixAdjasment[x][y] = node;
-            }
-        }
-    }
-    return matrixAdjasment;
-}
 
 export function startGame(levelMap, gameState) {
     //console.log(levelMap)
     //parseMap(levelMap);
-    portsCoordinates = [];
+    tradePorts = [];
     homePort = {};
     map = [[]];
     lenToPorts = {};
     productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
-    portsCoordinates = []
+    mapLevel = new GameMap(levelMap);
+    //console.log(mapLevel)
 
     for (let gameStatePort of gameState.ports) {
         const currentPortId = gameStatePort.portId;
@@ -234,7 +201,7 @@ export function startGame(levelMap, gameState) {
 
     homePort = new HomePort(homePortArray.portId, homePortArray.x, homePortArray.y);
     portsCoordinatesArray.forEach(port =>
-        portsCoordinates.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
+        tradePorts.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
 
     gameState.goodsInPort.forEach(good => {
         productDesc[good.name] = good.volume;
@@ -260,10 +227,113 @@ export function getNextCommand(gameState) {
 }
 
 
+///////////////////
+let mapLevel;
+class GameMap {
+    symbolMap;
+    nodeMap;
+
+    constructor(levelMap) {
+        const matrix = levelMap.split('\n');
+        for (let x = 0; x < matrix.length; x++) {
+            matrix[x] = matrix[x].split("")
+        }
+
+        const width = matrix.length;
+        const height = matrix[0].length
+        let matrixAdjasment = matrixArray(width, height);
+        //console.log(matrixAdjasment)
+        for (let x = 1; x < matrix.length - 1; x++) {
+            for (let y = 1; y < matrix[x].length - 1; y++) {
+                const currentCell = matrix[x][y];
+                const leftCell = new MapObject(x - 1, y)
+                const rightCell = new MapObject(x + 1, y);
+                const downCell = new MapObject(x, y - 1);
+                const upCell = new MapObject(x, y + 1);
+                const neighbours = [leftCell, rightCell, downCell, upCell];
+                if (currentCell !== "#") {
+                    const mapObject = createMapObject(currentCell, x, y)
+                    let node = new Node(mapObject)
+                    for (let i = 0; i < neighbours.length; i++) {
+                        if (matrix[neighbours[i].x][neighbours[i].y] !== "#") {
+                            const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
+                            const childrens = new Node(innerMapObject)
+                            childrens.parent = node;
+                            node.childrens.push(childrens)
+                        }
+                    }
+                    matrixAdjasment[x][y] = node;
+                }
+            }
+        }
+        this.nodeMap = matrixAdjasment;
+        this.symbolMap = matrix;
+    }
+
+
+    get Height() {
+        return this.symbolMap.length;
+    }
+
+    get Width() {
+        return this.symbolMap[0].length;
+    }
+
+    Get(y, x) {
+        return this.symbolMap[y][x];
+    }
+
+}
+function manivrateToPort(objSource, objDestination) {
+    const queue = new PriorityQueue();
+    queue.push({...objSource, way: []}, 0);
+    const visited = new Array(mapLevel.Height);
+    for (let i = 0; i < mapLevel.Height; i++) {
+        visited[i] = (new Array(mapLevel.Width).fill(false));
+    }
+    const directions = [
+        {x: -1, y:  0},
+        {x:  1, y:  0},
+        {x:  0, y: -1},
+        {x:  0, y:  1},
+    ];
+
+    const isCorrectWay = obj => obj.x >= 0 && obj.x < mapLevel.Width && obj.y >= 0 && obj.y < mapLevel.Height && mapLevel.Get(obj.y, obj.x) !== '#';
+
+    while (queue.length !== 0) {
+        const node = queue.shift();
+        function isEqualPosition(obj1, obj2) {
+            return obj1.x === obj2.x && obj1.y === obj2.y;
+        }
+        if (isEqualPosition(node, objDestination)) {
+            // console.log(visited);
+            return node.way;
+        }
+        function manhattanDistance(obj1, obj2) {
+            return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
+        }
+
+        visited[node.y][node.x] = true;
+        for (const direction of directions) {
+            const new_node = {
+                x: node.x + direction.x,
+                y: node.y + direction.y
+            };
+            if (isCorrectWay(new_node) && !visited[new_node.y][new_node.x]) {
+                const {x, y} = new_node;
+                new_node.way = [...node.way, {x, y}];
+                queue.push(new_node, new_node.way.length + manhattanDistance(new_node, objDestination));
+            }
+        }
+    }
+    return [];
+}
+//////////////////////////
+
 function getProductForLoad(goodsInPort) {
     const freeSpaceShip = ship.getFreeSpaceInShip();
 
-    const products = portsCoordinates.map((port, index) => {
+    const products = tradePorts.map((port, index) => {
         const price = port.prices;
         if (!price) return null;
         let optimalProduct = null;
@@ -287,11 +357,12 @@ function getProductForLoad(goodsInPort) {
             port, index
         }
     });
-    products.forEach(products => {
-        if (products && products.product && !lenToPorts.hasOwnProperty(products.port.portId)) {
-            lenToPorts[products.port.portId] = Maths.distance(products.port, homePort);
+
+    for (const product of products) {
+        if (product && product.product && !lenToPorts.hasOwnProperty(product.port.portId)) {
+            lenToPorts[product.port.portId] = Maths.distance(product.port, homePort);
         }
-    });
+    }
 
     const profitObj = maxElement(products, profitToPort)
     return profitObj && profitObj.product;
@@ -335,7 +406,7 @@ function profitOnSale(port) {
 
 
 function findOptimalPort() {
-    const portes = portsCoordinates;
+    const portes = tradePorts;
     portes.push(homePort)
     //return maxElement(portes, profitOnSale, homePort)
     return portes.reduce((max_port, port) => {
@@ -351,20 +422,22 @@ function findOptimalPort() {
 function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) return 'WAIT';
+    const way = manivrateToPort(ship, optimalPort);
+    const point = way[0] || optimalPort;
 
     let command;
-    if (ship.y > optimalPort.y) {
+    if (ship.y > point.y) {
         command = ship.moveToNorth()
     }
-    if (ship.y < optimalPort.y) {
+    if (ship.y < point.y) {
         command = ship.moveToSouth()
 
     }
-    if (ship.x > optimalPort.x) {
+    if (ship.x > point.x) {
         command = ship.moveToWest()
 
     }
-    if (ship.x < optimalPort.x) {
+    if (ship.x < point.x) {
         command = ship.moveToEast()
     }
     if (command === undefined) {
@@ -383,60 +456,88 @@ class QElement {
 
 class PriorityQueue {
     constructor() {
-        this.items = [];
+        this._objs = [];
+        this._length = 0;
     }
 
-    enqueue(element, priority) {
-        // creating object from queue element
-        var qElement = new QElement(element, priority);
-        var contain = false;
-        // iterating through the entire item array to add element at the correct location of the Queue
-        for (var i = 0; i < this.items.length; i++) {
-            if (this.items[i].priority > qElement.priority) {
-                // Once the correct location is found it is enqueued
-                this.items.splice(i, 0, qElement);
-                contain = true;
+    heapUp(index) {
+        const obj = this._objs[index];
+
+        while (index > 0) {
+
+            const parentIndex = Math.floor((index - 1) / 2);
+            if (this._objs[parentIndex].priority <= obj.priority) {
                 break;
             }
+
+            this._objs[index] = this._objs[parentIndex];
+
+            index = parentIndex;
         }
-        // if the element have the highest priority
-        // it is added at the end of the queue
-        if (!contain) {
-            this.items.push(qElement);
+
+
+        this._objs[index] = obj;
+    }
+
+    heapDown(index) {
+        const obj = this._objs[index];
+
+        while (index < this._length) {
+            const left = (index * 2) + 1;
+            if (left >= this._length) {
+                break;
+            }
+
+            let childObj = this._objs[left];
+            let childIndex = left;
+
+            const right = left + 1;
+            if (right < this._length) {
+                const rightObj = this._objs[right];
+                if (rightObj.priority < childObj.priority) {
+                    childObj = rightObj;
+                    childIndex = right;
+                }
+            }
+
+            if (childObj.priority >= obj.priority) {
+                break;
+            }
+
+            this._objs[index] = childObj;
+
+            index = childIndex;
         }
+
+        this._objs[index] = obj;
     }
 
-    dequeue() {
-        // return the dequeued element and remove it.
-        // if the queue is empty returns Underflow
-        if (this.isEmpty())
-            return "Underflow";
-        return this.items.shift();
+    push(key, priority) {
+        this._objs.push({key, priority});
+        this.heapUp(this._length);
+        this._length++;
     }
 
-    front() {
-        // returns the highest priority element in the Priority queue without removing it.
-        if (this.isEmpty())
-            return "No elements in Queue";
-        return this.items[0];
+    shift() {
+        if (this._length === 0) {
+            return undefined;
+        }
+        const obj = this._objs[0];
+
+        this._length--;
+
+        if (this._length > 0) {
+            this._objs[0] = this._objs[this._length];
+            this._objs.pop();
+            this.heapDown(0);
+        } else {
+            this._objs.pop();
+        }
+
+        return obj.key;
     }
 
-    rear() {
-        // returns the lowest priorty element of the queue
-        if (this.isEmpty())
-            return "No elements in Queue";
-        return this.items[this.items.length - 1];
-    }
-
-    isEmpty() {
-        // return true if the queue is empty.
-        return this.items.length === 0;
-    }
-
-    printPQueue() {
-        var str = "";
-        for (var i = 0; i < this.items.length; i++)
-            str += this.items[i].element + " ";
-        return str;
+    get length() {
+        return this._length;
     }
 }
