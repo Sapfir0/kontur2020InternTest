@@ -305,8 +305,8 @@ function manivrateToPort(objSource, objDestination) {
         function isEqualPosition(obj1, obj2) {
             return obj1.x === obj2.x && obj1.y === obj2.y;
         }
-        if (isEqualPosition(node, objDestination)) {
-            return node.way;
+        if (isEqualPosition(node.element, objDestination)) {
+            return node.element.way;
         }
         function manhattanDistance(obj1, obj2) {
             return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
@@ -314,7 +314,7 @@ function manivrateToPort(objSource, objDestination) {
 
         //console.log(node)
         visited[node.element.y][node.element.x] = true;
-        debugger
+        //debugger
         for (const direction of directions) {
             const new_node = {
                 x: node.element.x + direction.x,
@@ -333,7 +333,6 @@ function manivrateToPort(objSource, objDestination) {
         //console.log(node.element.y, node.element.x)
         //console.log(visited)
     }
-    //console.log("a")
     return [];
 }
 
@@ -500,6 +499,7 @@ function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) return 'WAIT';
     const way = manivrateToPort(ship, optimalPort);
+    console.log(way)
     const point = way[0] || optimalPort;
 
     let command;
