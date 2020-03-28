@@ -3,7 +3,7 @@ const SHIP_HOLD_SIZE = 368;
 let tradePorts = [];
 let homePort = {};
 let ship;
-let map = [[]];
+let map = [];
 let distanceToPort = {};
 let productDesc = {};
 
@@ -46,7 +46,7 @@ class Ship {
     }
 
     canLoadProduct(gameState) {
-        return !ship.notHaveItems() && ship.isHomePort(gameState.ship);
+        return this.getFreeSpaceInShip() > 100 && !ship.notHaveItems() && ship.isHomePort(gameState.ship);
     }
 
     moveToSouth() {
@@ -114,7 +114,10 @@ class Maths {
 
     static amountInShip(freeSpaceShip, product) {
         return  Math.min(Math.floor(freeSpaceShip / product.volume), product.amount);
+    }
 
+    static manhattanDistance(obj1, obj2) {
+        return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
     }
 }
 
@@ -124,26 +127,19 @@ class MapObject {
     y;
     isHomePort;
     isTradePort;
+    symbol;
+    neighbours = [];
 
-    constructor(x, y, isHomePort = false, isTradePort = false) {
+    constructor(symbol, x, y, neighbours=[], isHomePort = false, isTradePort = false) {
+        this.symbol = symbol;
         this.x = x;
         this.y = y;
+        this.neighbours = neighbours;
         this.isHomePort = isHomePort;
         this.isTradePort = isTradePort;
     }
 }
 
-
-class Node {
-    childrens = [];
-    mapObject;
-    parent;
-
-    constructor(mapObject, parent = null) {
-        this.mapObject = mapObject;
-        this.parent = parent;
-    }
-}
 
 function matrixArray(rows, columns) {
     var arr = [];
@@ -156,19 +152,20 @@ function matrixArray(rows, columns) {
     return arr;
 }
 
-function createMapObject(symbol, x, y) {
+function createMapObject(symbol, x, y, neighbours = []) {
     let mapObject;
+
     switch (symbol) {
         case "O": {
-            mapObject = new MapObject(x, y, false, true)
+            mapObject = new MapObject(symbol, x, y, neighbours, false, true)
             break;
         }
         case "H": {
-            mapObject = new MapObject(x, y, true)
+            mapObject = new MapObject(symbol, x, y,  neighbours,true)
             break;
         }
         case "~": {
-            mapObject = new MapObject(x, y)
+            mapObject = new MapObject(symbol, x, y, neighbours)
             break;
         }
     }
@@ -179,15 +176,14 @@ function createMapObject(symbol, x, y) {
 
 
 export function startGame(levelMap, gameState) {
-    //parseMap(levelMap);
     tradePorts = [];
     homePort = {};
-    map = [[]];
     distanceToPort = {};
     productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
     map = new Map(levelMap);
+
 
     for (let gameStatePort of gameState.ports) {
         const currentPortId = gameStatePort.portId;
@@ -210,7 +206,8 @@ export function startGame(levelMap, gameState) {
 export function getNextCommand(gameState) {
     let command;
     ship.refreshShipState(gameState.ship);
-
+    map.refreshPirates(gameState.pirates);
+    console.log(map)
     if (ship.canLoadProduct(gameState)) {
         const product = getProductForLoad(gameState.goodsInPort);
         command = `LOAD ${product.name} ${product.amount}`
@@ -224,10 +221,37 @@ export function getNextCommand(gameState) {
 }
 
 
-///////////////////
 class Map {
     symbolMap;
-    nodeMap;
+    lastPiratesLocatation = [];
+    rememberMapObjects = [];
+    refreshPirates(pirates) {
+        const directions = [
+            {x: -1, y:  0},
+            {x:  1, y:  0},
+            {x:  0, y: -1},
+            {x:  0, y:  1},
+        ];
+        for(const pirate of pirates) {
+            for (const direction of directions) {
+                this.rememberMapObjects.push(this.Get(pirate.y+direction.y, pirate.x + direction.x))
+                this.Set(pirate.y+direction.y, pirate.x + direction.x,  0)
+            }
+        }
+        //console.log(this.rememberMapObjects)
+        for (const mapObject of this.rememberMapObjects) {
+            if (mapObject) {
+                // console.log(mapObject)
+                if (mapObject.x && mapObject.y) {
+                    console.log(ship)
+                    this.Set(mapObject.y, mapObject.x, mapObject);
+                }
+
+            }
+        }
+        this.lastPiratesLocatation = pirates;
+        this.rememberMapObjects = [];
+    }
 
     constructor(levelMap) {
         const matrix = levelMap.split('\n');
@@ -242,24 +266,26 @@ class Map {
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
                 const currentCell = matrix[x][y];
-                const neighbours = [new MapObject(x - 1, y), new MapObject(x + 1, y), new MapObject(x, y - 1), new MapObject(x, y + 1)];
+                const neighbours = [
+                    createMapObject(currentCell, x - 1, y),
+                    createMapObject(currentCell,x + 1, y),
+                    createMapObject(currentCell, x, y - 1),
+                    createMapObject(currentCell, x, y + 1)
+                ];
                 if (currentCell !== "#") {
-                    const mapObject = createMapObject(currentCell, x, y)
-                    let node = new Node(mapObject)
-                    for (let i = 0; i < neighbours.length; i++) {
-                        if (matrix[neighbours[i].x][neighbours[i].y] !== "#") {
-                            const innerMapObject = createMapObject(matrix[neighbours[i].x][neighbours[i].y], neighbours[i].x, neighbours[i].y)
-                            const childrens = new Node(innerMapObject)
-                            childrens.parent = node;
-                            node.childrens.push(childrens)
+                    let childrens = [];
+                    for (const neighbour of neighbours) {
+                        if (matrix[neighbour.x][neighbour.y] !== "#") {
+                            const innerMapObject = createMapObject(matrix[neighbour.x][neighbour.y], neighbour.x, neighbour.y)
+                            childrens.push(innerMapObject)
                         }
                     }
-                    matrixAdjasment[x][y] = node;
+                    const mapObject = createMapObject(currentCell, x, y, childrens)
+                    matrixAdjasment[x][y] = mapObject;
                 }
             }
         }
-        this.nodeMap = matrixAdjasment;
-        this.symbolMap = matrix;
+        this.symbolMap = matrixAdjasment;
     }
 
 
@@ -275,31 +301,32 @@ class Map {
         return this.symbolMap[y][x];
     }
 
+    Set(y,x,value) {
+        //console.log(this.symbolMap[y][x])
+        this.symbolMap[y][x] = value;
+    }
+
 }
 function isEqualPosition(obj1, obj2) {
     return obj1.x === obj2.x && obj1.y === obj2.y;
 }
-function manhattanDistance(obj1, obj2) {
-    return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
-}
-const isCorrectWay = obj => obj.x >= 0 && obj.x < map.Width && obj.y >= 0 && obj.y < map.Height && map.Get(obj.y, obj.x) !== '#';
 
+function isCorrectWay(cell) {
+    return cell.x >= 0 && cell.x < map.Width && cell.y >= 0 && cell.y < map.Height && map.Get(cell.y, cell.x) !== 0;
+}
 
 function manivrateToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
-    const visited = new Array(map.Height);
-    for (let i = 0; i < map.Height; i++) {
-        visited[i] = (new Array(map.Width).fill(false));
-    }
+    const visited = matrixArray(map.Height, map.Width);
+
     const directions = [
         {x: -1, y:  0},
         {x:  1, y:  0},
         {x:  0, y: -1},
         {x:  0, y:  1},
     ];
-
-
+    let counter = 0;
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
 
@@ -317,11 +344,15 @@ function manivrateToPort(objSource, objDestination) {
             if (!visited[new_node.y][new_node.x] && isCorrectWay(new_node)) {
                 const {x, y} = new_node;
                 new_node.way = [...node.element.way, {x, y}];
-                queue.enqueue(new_node, new_node.way.length + manhattanDistance(new_node, objDestination));
+                queue.enqueue(new_node, new_node.way.length + Maths.manhattanDistance(new_node, objDestination));
             }
         }
-        //console.log(node.element.y, node.element.x)
-        //console.log(visited)
+
+        //
+        // counter++;
+        // if (counter > 40) {
+        //     break;
+        // }
     }
     return [];
 }
