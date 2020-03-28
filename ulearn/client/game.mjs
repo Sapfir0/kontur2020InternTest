@@ -46,7 +46,7 @@ class Ship {
     }
 
     canLoadProduct(gameState) {
-        return this.getFreeSpaceInShip() > 100 && !ship.notHaveItems() && ship.isHomePort(gameState.ship);
+        return this.getFreeSpaceInShip() > 35 && !ship.notHaveItems() && ship.isHomePort(gameState.ship);
     }
 
     moveToSouth() {
@@ -207,7 +207,7 @@ export function getNextCommand(gameState) {
     let command;
     ship.refreshShipState(gameState.ship);
     map.refreshPirates(gameState.pirates);
-    console.log(map)
+    //console.log(map)
     if (ship.canLoadProduct(gameState)) {
         const product = getProductForLoad(gameState.goodsInPort);
         command = `LOAD ${product.name} ${product.amount}`
@@ -220,12 +220,17 @@ export function getNextCommand(gameState) {
     return command;
 }
 
+function haveGoodsInPort(gameState) {
+    return gameState.goodsInPort.length !== 0;
+}
+
 
 class Map {
     symbolMap;
-    lastPiratesLocatation = [];
-    rememberMapObjects = [];
+    lastPiratesLocatation ;
+
     refreshPirates(pirates) {
+        this.lastPiratesLocatation = matrixArray(this.Height, this.Width)
         const directions = [
             {x: -1, y:  0},
             {x:  1, y:  0},
@@ -234,22 +239,13 @@ class Map {
         ];
         for(const pirate of pirates) {
             for (const direction of directions) {
-                this.rememberMapObjects.push(this.Get(pirate.y+direction.y, pirate.x + direction.x))
-                this.Set(pirate.y+direction.y, pirate.x + direction.x,  0)
+                const x = pirate.x + direction.x;
+                const y = pirate.y+direction.y;
+                this.lastPiratesLocatation[y][x] = true;
             }
         }
         //console.log(this.rememberMapObjects)
-        for (const mapObject of this.rememberMapObjects) {
-            if (mapObject) {
-                // console.log(mapObject)
-                if (mapObject.x && mapObject.y) {
-                    console.log(ship)
-                    this.Set(mapObject.y, mapObject.x, mapObject);
-                }
 
-            }
-        }
-        this.lastPiratesLocatation = pirates;
         this.rememberMapObjects = [];
     }
 
@@ -262,6 +258,8 @@ class Map {
         const width = matrix.length;
         const height = matrix[0].length
         let matrixAdjasment = matrixArray(width, height);
+        this.lastPiratesLocatation = matrixArray(width, height)
+
         //console.log(matrixAdjasment)
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
@@ -298,6 +296,7 @@ class Map {
     }
 
     Get(y, x) {
+        if (this.lastPiratesLocatation[y][x]) return 0
         return this.symbolMap[y][x];
     }
 
@@ -349,10 +348,10 @@ function manivrateToPort(objSource, objDestination) {
         }
 
         //
-        // counter++;
-        // if (counter > 40) {
-        //     break;
-        // }
+        counter++;
+        if (counter > 300) {
+            break;
+        }
     }
     return [];
 }
