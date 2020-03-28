@@ -1,10 +1,10 @@
-const MAX_LOAD_SHIP = 368;
+const SHIP_HOLD_SIZE = 368;
 
 let tradePorts = [];
 let homePort = {};
 let ship;
 let map = [[]];
-let lenToPorts = {};
+let distanceToPort = {};
 let productDesc = {};
 
 
@@ -70,11 +70,11 @@ class Ship {
     }
 
     needSale() {
-        return ship.notHaveItems() && ship.isInTradePort() && ship.weAreIn(findOptimalPort())
+        return ship.isInTradePort() && ship.weAreIn(findOptimalPort())
     }
 
     getFreeSpaceInShip() {
-        return ship.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, MAX_LOAD_SHIP);
+        return ship.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, SHIP_HOLD_SIZE);
     }
 }
 
@@ -179,17 +179,15 @@ function createMapObject(symbol, x, y) {
 
 
 export function startGame(levelMap, gameState) {
-    //console.log(levelMap)
     //parseMap(levelMap);
     tradePorts = [];
     homePort = {};
     map = [[]];
-    lenToPorts = {};
+    distanceToPort = {};
     productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
-    mapLevel = new GameMap(levelMap);
-    //console.log(mapLevel)
+    map = new Map(levelMap);
 
     for (let gameStatePort of gameState.ports) {
         const currentPortId = gameStatePort.portId;
@@ -203,20 +201,19 @@ export function startGame(levelMap, gameState) {
     portsCoordinatesArray.forEach(port =>
         tradePorts.push(new TradingPort(port.portId, port.x, port.y, port.prices)))
 
-    gameState.goodsInPort.forEach(good => {
-        productDesc[good.name] = good.volume;
-    });
+    for (const product of gameState.goodsInPort) {
+        productDesc[product.name] = product.volume
+    }
 }
 
 
 export function getNextCommand(gameState) {
-    let command = 'WAIT';
+    let command;
     ship.refreshShipState(gameState.ship);
 
     if (ship.canLoadProduct(gameState)) {
         const product = getProductForLoad(gameState.goodsInPort);
-        if (product)
-            command = `LOAD ${product.name} ${product.amount}`
+        command = `LOAD ${product.name} ${product.amount}`
     } else if (ship.needSale(gameState)) {
         const product = getProductForSale();
         command = `SELL ${product.name} ${product.amount}`
@@ -228,8 +225,7 @@ export function getNextCommand(gameState) {
 
 
 ///////////////////
-let mapLevel;
-class GameMap {
+class Map {
     symbolMap;
     nodeMap;
 
@@ -246,11 +242,7 @@ class GameMap {
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
                 const currentCell = matrix[x][y];
-                const leftCell = new MapObject(x - 1, y)
-                const rightCell = new MapObject(x + 1, y);
-                const downCell = new MapObject(x, y - 1);
-                const upCell = new MapObject(x, y + 1);
-                const neighbours = [leftCell, rightCell, downCell, upCell];
+                const neighbours = [new MapObject(x - 1, y), new MapObject(x + 1, y), new MapObject(x, y - 1), new MapObject(x, y + 1)];
                 if (currentCell !== "#") {
                     const mapObject = createMapObject(currentCell, x, y)
                     let node = new Node(mapObject)
@@ -284,12 +276,21 @@ class GameMap {
     }
 
 }
+function isEqualPosition(obj1, obj2) {
+    return obj1.x === obj2.x && obj1.y === obj2.y;
+}
+function manhattanDistance(obj1, obj2) {
+    return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
+}
+const isCorrectWay = obj => obj.x >= 0 && obj.x < map.Width && obj.y >= 0 && obj.y < map.Height && map.Get(obj.y, obj.x) !== '#';
+
+
 function manivrateToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
-    const visited = new Array(mapLevel.Height);
-    for (let i = 0; i < mapLevel.Height; i++) {
-        visited[i] = (new Array(mapLevel.Width).fill(false));
+    const visited = new Array(map.Height);
+    for (let i = 0; i < map.Height; i++) {
+        visited[i] = (new Array(map.Width).fill(false));
     }
     const directions = [
         {x: -1, y:  0},
@@ -298,36 +299,25 @@ function manivrateToPort(objSource, objDestination) {
         {x:  0, y:  1},
     ];
 
-    const isCorrectWay = obj => obj.x >= 0 && obj.x < mapLevel.Width && obj.y >= 0 && obj.y < mapLevel.Height && mapLevel.Get(obj.y, obj.x) !== '#';
 
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
-        function isEqualPosition(obj1, obj2) {
-            return obj1.x === obj2.x && obj1.y === obj2.y;
-        }
+
         if (isEqualPosition(node.element, objDestination)) {
             return node.element.way;
         }
-        function manhattanDistance(obj1, obj2) {
-            return Math.abs(obj1.x-obj2.x)+Math.abs(obj1.y-obj2.y);
-        }
 
-        //console.log(node)
         visited[node.element.y][node.element.x] = true;
-        //debugger
+
         for (const direction of directions) {
             const new_node = {
                 x: node.element.x + direction.x,
                 y: node.element.y + direction.y
             };
-            //console.log(new_node)
-            if (isCorrectWay(new_node) && !visited[new_node.y][new_node.x]) {
+            if (!visited[new_node.y][new_node.x] && isCorrectWay(new_node)) {
                 const {x, y} = new_node;
-                //console.log(new_node.way)
                 new_node.way = [...node.element.way, {x, y}];
                 queue.enqueue(new_node, new_node.way.length + manhattanDistance(new_node, objDestination));
-                //console.log(queue.printPQueue())
-
             }
         }
         //console.log(node.element.y, node.element.x)
@@ -350,10 +340,10 @@ class PriorityQueue {
 
     enqueue(element, priority) {
         // creating object from queue element
-        var qElement = new QElement(element, priority);
-        var contain = false;
+        const qElement = new QElement(element, priority);
+        let contain = false;
         // iterating through the entire item array to add element at the correct location of the Queue
-        for (var i = 0; i < this.items.length; i++) {
+        for (let i = 0; i < this.items.length; i++) {
             if (this.items[i].priority > qElement.priority) {
                 // Once the correct location is found it is enqueued
                 this.items.splice(i, 0, qElement);
@@ -371,39 +361,20 @@ class PriorityQueue {
     dequeue() {
         // return the dequeued element and remove it.
         // if the queue is empty returns Underflow
-        if (this.isEmpty())
-            return false
+        // if (this.isEmpty())
+        //     return false
         return this.items.shift();
     }
 
-    front() {
-        // returns the highest priority element in the Priority queue without removing it.
-        if (this.isEmpty())
-            return false
-        return this.items[0];
-    }
-
-    rear() {
-        // returns the lowest priorty element of the queue
-        if (this.isEmpty())
-            return false
-        return this.items[this.items.length - 1];
-    }
 
     isEmpty() {
         // return true if the queue is empty.
         return this.items.length === 0;
     }
 
-    printPQueue() {
-        var str = "";
-        for (var i = 0; i < this.items.length; i++)
-            str += this.items[i].element + " ";
-        return str;
-    }
 }
 
-//////////////////////////
+
 function generateProducts(goodsInPort, freeSpaceShip) {
     const products = tradePorts.map((port, index) => {
         if (!port.prices) return null;
@@ -439,8 +410,8 @@ function getProductForLoad(goodsInPort) {
     const products = generateProducts(goodsInPort, freeSpaceShip);
 
     for (const product of products) {
-        if (product && product.product && !lenToPorts.hasOwnProperty(product.port.portId)) {
-            lenToPorts[product.port.portId] = Maths.distance(product.port, homePort);
+        if (product && product.product && !distanceToPort.hasOwnProperty(product.port.portId)) {
+            distanceToPort[product.port.portId] = Maths.distance(product.port, homePort);
         }
     }
 
@@ -450,7 +421,7 @@ function getProductForLoad(goodsInPort) {
 
 
 function profitToPort(obj) {
-    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, lenToPorts[obj.port.portId]);
+    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPort[obj.port.portId]);
 }
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
@@ -499,8 +470,9 @@ function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) return 'WAIT';
     const way = manivrateToPort(ship, optimalPort);
-    console.log(way)
+    //console.log(way)
     const point = way[0] || optimalPort;
+    //const point = optimalPort;
 
     let command;
     if (ship.y > point.y) {
