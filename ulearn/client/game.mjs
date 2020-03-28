@@ -19,11 +19,11 @@ class Ship {
         this.refreshShipState(gameState)
     }
 
-    get command() {
+    get Сomand() {
         return this.command;
     }
 
-    set command(command) {
+    set Сomand(command) {
         this.command = command;
     }
 
@@ -55,28 +55,28 @@ class Ship {
         return ship.items.length > 0
     }
 
-    canLoadProduct(gameState) {
-        return this.getFreeSpaceInShip() > 35 && !ship.notHaveItems() && ship.isHomePort(gameState.ship);
+    canLoadProduct() {
+        return this.getFreeSpaceInShip() > 35 && !ship.notHaveItems() && ship.isHomePort();
     }
 
     moveToSouth() {
-        return 'S'
+        this.command =  'S'
     }
 
     moveToNorth() {
-        return 'N'
+        this.command =  'N'
     }
 
     moveToEast() {
-        return 'E'
+        this.command =  'E'
     }
 
     moveToWest() {
-        return 'W'
+        this.command = 'W'
     }
 
     wait() {
-        return 'W'
+        this.command =  'WAIT'
     }
 
     needSale() {
@@ -304,14 +304,14 @@ export function getNextCommand(gameState) {
     ship.refreshShipState(gameState.ship);
     map.refreshPirates(gameState.pirates);
 
-    if (ship.canLoadProduct(gameState)) {
+    if (ship.canLoadProduct()) {
         const product = getProductForLoad(gameState.goodsInPort);
         ship.command = `LOAD ${product.name} ${product.amount}`
-    } else if (ship.needSale(gameState)) {
+    } else if (ship.needSale()) {
         const product = getProductForSale();
         ship.command = `SELL ${product.name} ${product.amount}`
     } else {
-        ship.command = goto(gameState);
+        goto();
     }
     return ship.command;
 }
@@ -504,7 +504,7 @@ function findOptimalPort() {
 function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) {
-        return 'WAIT';
+        ship.wait()
     }
     const way = maneuvereToPort(ship, optimalPort);
     let destination = way[0];
@@ -512,23 +512,18 @@ function goto() {
         destination = optimalPort
     }
 
-    let command;
     if (ship.y > destination.y) {
-        command = ship.moveToNorth()
+        ship.moveToNorth()
     }
     if (ship.y < destination.y) {
-        command = ship.moveToSouth()
+        ship.moveToSouth()
     }
     if (ship.x > destination.x) {
-        command = ship.moveToWest()
+        ship.moveToWest()
     }
     if (ship.x < destination.x) {
-        command = ship.moveToEast()
+        ship.moveToEast()
     }
-    if (command === undefined) {
-        command = ship.wait()
-    }
-    return command;
 }
 
 
