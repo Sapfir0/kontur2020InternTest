@@ -122,6 +122,93 @@ class Maths {
 }
 
 
+class Map {
+    symbolMap;
+    lastPiratesLocatation ;
+    directions = [
+        {x: -1, y:  0},
+        {x:  1, y:  0},
+        {x:  0, y: -1},
+        {x:  0, y:  1},
+    ];
+
+
+    refreshPirates(pirates) {
+        this.lastPiratesLocatation = createMatrix(this.Height, this.Width)
+        const directions = [
+            {x: -1, y:  0},
+            {x:  1, y:  0},
+            {x:  0, y: -1},
+            {x:  0, y:  1},
+        ];
+        for(const pirate of pirates) {
+            for (const direction of this.directions) {
+                const x = pirate.x + direction.x;
+                const y = pirate.y+direction.y;
+                this.lastPiratesLocatation[y][x] = true;
+            }
+        }
+        //console.log(this.rememberMapObjects)
+    }
+
+    constructor(levelMap) {
+        const matrix = levelMap.split('\n');
+        for (let x = 0; x < matrix.length; x++) {
+            matrix[x] = matrix[x].split("")
+        }
+
+        const width = matrix.length;
+        const height = matrix[0].length
+        let matrixAdjasment = createMatrix(width, height);
+        this.lastPiratesLocatation = createMatrix(width, height)
+
+        //console.log(matrixAdjasment)
+        for (let x = 1; x < matrix.length - 1; x++) {
+            for (let y = 1; y < matrix[x].length - 1; y++) {
+                const currentCell = matrix[x][y];
+                const neighbours = [
+                    createMapObject(currentCell, x - 1, y),
+                    createMapObject(currentCell,x + 1, y),
+                    createMapObject(currentCell, x, y - 1),
+                    createMapObject(currentCell, x, y + 1)
+                ];
+                if (currentCell !== "#") {
+                    let childrens = [];
+                    for (const neighbour of neighbours) {
+                        if (matrix[neighbour.x][neighbour.y] !== "#") {
+                            const innerMapObject = createMapObject(matrix[neighbour.x][neighbour.y], neighbour.x, neighbour.y)
+                            childrens.push(innerMapObject)
+                        }
+                    }
+                    const mapObject = createMapObject(currentCell, x, y, childrens)
+                    matrixAdjasment[x][y] = mapObject;
+                }
+            }
+        }
+        this.symbolMap = matrixAdjasment;
+    }
+
+
+    get Height() {
+        return this.symbolMap.length;
+    }
+
+    get Width() {
+        return this.symbolMap[0].length;
+    }
+
+    Get(y, x) {
+        if (this.lastPiratesLocatation[y][x]) return 0
+        return this.symbolMap[y][x];
+    }
+
+    Set(y,x,value) {
+        //console.log(this.symbolMap[y][x])
+        this.symbolMap[y][x] = value;
+    }
+
+}
+
 class MapObject {
     x;
     y;
@@ -141,11 +228,11 @@ class MapObject {
 }
 
 
-function matrixArray(rows, columns) {
-    var arr = [];
-    for (var i = 0; i < rows; i++) {
+function createMatrix(rows, columns) {
+    const arr = [];
+    for (let i = 0; i < rows; i++) {
         arr[i] = [];
-        for (var j = 0; j < columns; j++) {
+        for (let j = 0; j < columns; j++) {
             arr[i][j] = 0;//вместо i+j+1 пишем любой наполнитель. В простейшем случае - null
         }
     }
@@ -220,136 +307,44 @@ export function getNextCommand(gameState) {
     return command;
 }
 
-function haveGoodsInPort(gameState) {
-    return gameState.goodsInPort.length !== 0;
+
+function isReachable(cell) {
+    return cell.x >= 0 &&
+        cell.x < map.Width &&
+        cell.y >= 0 &&
+        cell.y < map.Height &&
+        map.Get(cell.y, cell.x) !== 0;
 }
 
-
-class Map {
-    symbolMap;
-    lastPiratesLocatation ;
-
-    refreshPirates(pirates) {
-        this.lastPiratesLocatation = matrixArray(this.Height, this.Width)
-        const directions = [
-            {x: -1, y:  0},
-            {x:  1, y:  0},
-            {x:  0, y: -1},
-            {x:  0, y:  1},
-        ];
-        for(const pirate of pirates) {
-            for (const direction of directions) {
-                const x = pirate.x + direction.x;
-                const y = pirate.y+direction.y;
-                this.lastPiratesLocatation[y][x] = true;
-            }
-        }
-        //console.log(this.rememberMapObjects)
-
-        this.rememberMapObjects = [];
-    }
-
-    constructor(levelMap) {
-        const matrix = levelMap.split('\n');
-        for (let x = 0; x < matrix.length; x++) {
-            matrix[x] = matrix[x].split("")
-        }
-
-        const width = matrix.length;
-        const height = matrix[0].length
-        let matrixAdjasment = matrixArray(width, height);
-        this.lastPiratesLocatation = matrixArray(width, height)
-
-        //console.log(matrixAdjasment)
-        for (let x = 1; x < matrix.length - 1; x++) {
-            for (let y = 1; y < matrix[x].length - 1; y++) {
-                const currentCell = matrix[x][y];
-                const neighbours = [
-                    createMapObject(currentCell, x - 1, y),
-                    createMapObject(currentCell,x + 1, y),
-                    createMapObject(currentCell, x, y - 1),
-                    createMapObject(currentCell, x, y + 1)
-                ];
-                if (currentCell !== "#") {
-                    let childrens = [];
-                    for (const neighbour of neighbours) {
-                        if (matrix[neighbour.x][neighbour.y] !== "#") {
-                            const innerMapObject = createMapObject(matrix[neighbour.x][neighbour.y], neighbour.x, neighbour.y)
-                            childrens.push(innerMapObject)
-                        }
-                    }
-                    const mapObject = createMapObject(currentCell, x, y, childrens)
-                    matrixAdjasment[x][y] = mapObject;
-                }
-            }
-        }
-        this.symbolMap = matrixAdjasment;
-    }
-
-
-    get Height() {
-        return this.symbolMap.length;
-    }
-
-    get Width() {
-        return this.symbolMap[0].length;
-    }
-
-    Get(y, x) {
-        if (this.lastPiratesLocatation[y][x]) return 0
-        return this.symbolMap[y][x];
-    }
-
-    Set(y,x,value) {
-        //console.log(this.symbolMap[y][x])
-        this.symbolMap[y][x] = value;
-    }
-
-}
-function isEqualPosition(obj1, obj2) {
-    return obj1.x === obj2.x && obj1.y === obj2.y;
-}
-
-function isCorrectWay(cell) {
-    return cell.x >= 0 && cell.x < map.Width && cell.y >= 0 && cell.y < map.Height && map.Get(cell.y, cell.x) !== 0;
-}
-
-function manivrateToPort(objSource, objDestination) {
+function maneuvereToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
-    const visited = matrixArray(map.Height, map.Width);
+    const visited = createMatrix(map.Height, map.Width);
 
-    const directions = [
-        {x: -1, y:  0},
-        {x:  1, y:  0},
-        {x:  0, y: -1},
-        {x:  0, y:  1},
-    ];
     let counter = 0;
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
 
-        if (isEqualPosition(node.element, objDestination)) {
+        if (node.element.x === objDestination.x && node.element.y === objDestination.y ) {
             return node.element.way;
         }
 
         visited[node.element.y][node.element.x] = true;
 
-        for (const direction of directions) {
+        for (const direction of map.directions) {
             const new_node = {
                 x: node.element.x + direction.x,
                 y: node.element.y + direction.y
             };
-            if (!visited[new_node.y][new_node.x] && isCorrectWay(new_node)) {
+            if (!visited[new_node.y][new_node.x] && isReachable(new_node)) {
                 const {x, y} = new_node;
                 new_node.way = [...node.element.way, {x, y}];
                 queue.enqueue(new_node, new_node.way.length + Maths.manhattanDistance(new_node, objDestination));
             }
         }
 
-        //
         counter++;
-        if (counter > 300) {
+        if (counter > 300) { // хых
             break;
         }
     }
@@ -499,7 +494,7 @@ function findOptimalPort() {
 function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) return 'WAIT';
-    const way = manivrateToPort(ship, optimalPort);
+    const way = maneuvereToPort(ship, optimalPort);
     //console.log(way)
     const point = way[0] || optimalPort;
     //const point = optimalPort;
