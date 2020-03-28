@@ -493,23 +493,26 @@ function findOptimalPort() {
 
 function goto() {
     const optimalPort = findOptimalPort();
-    if (optimalPort === undefined) return 'WAIT';
+    if (optimalPort === undefined) {
+        return 'WAIT';
+    }
     const way = maneuvereToPort(ship, optimalPort);
-    //console.log(way)
-    const point = way[0] || optimalPort;
-    //const point = optimalPort;
+    let destination = way[0];
+    if (destination === undefined) {
+        destination = optimalPort
+    }
 
     let command;
-    if (ship.y > point.y) {
+    if (ship.y > destination.y) {
         command = ship.moveToNorth()
     }
-    if (ship.y < point.y) {
+    if (ship.y < destination.y) {
         command = ship.moveToSouth()
     }
-    if (ship.x > point.x) {
+    if (ship.x > destination.x) {
         command = ship.moveToWest()
     }
-    if (ship.x < point.x) {
+    if (ship.x < destination.x) {
         command = ship.moveToEast()
     }
     if (command === undefined) {
