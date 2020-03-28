@@ -1,4 +1,3 @@
-const SHIP_HOLD_SIZE = 368;
 
 let tradePorts = [];
 let homePort = {};
@@ -9,6 +8,9 @@ let productDesc = {};
 
 
 class Ship {
+    SHIP_HOLD_SIZE = 368;
+
+    command = "";
     x = 0;
     y = 0;
     items;
@@ -17,7 +19,15 @@ class Ship {
         this.refreshShipState(gameState)
     }
 
-    getLocation() {
+    get command() {
+        return this.command;
+    }
+
+    set command(command) {
+        this.command = command;
+    }
+
+    get location() {
         const loc = {x: this.x, y: this.y}
         return loc;
     }
@@ -74,7 +84,7 @@ class Ship {
     }
 
     getFreeSpaceInShip() {
-        return ship.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, SHIP_HOLD_SIZE);
+        return this.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, this.SHIP_HOLD_SIZE);
     }
 }
 
@@ -291,20 +301,19 @@ export function startGame(levelMap, gameState) {
 
 
 export function getNextCommand(gameState) {
-    let command;
     ship.refreshShipState(gameState.ship);
     map.refreshPirates(gameState.pirates);
-    //console.log(map)
+
     if (ship.canLoadProduct(gameState)) {
         const product = getProductForLoad(gameState.goodsInPort);
-        command = `LOAD ${product.name} ${product.amount}`
+        ship.command = `LOAD ${product.name} ${product.amount}`
     } else if (ship.needSale(gameState)) {
         const product = getProductForSale();
-        command = `SELL ${product.name} ${product.amount}`
+        ship.command = `SELL ${product.name} ${product.amount}`
     } else {
-        command = goto(gameState);
+        ship.command = goto(gameState);
     }
-    return command;
+    return ship.command;
 }
 
 
@@ -422,7 +431,8 @@ function generateProducts(goodsInPort, freeSpaceShip) {
         return {
             product: optimalProduct,
             priceInPort: price,
-            port, index
+            port,
+            index
         }
     });
     return products;
