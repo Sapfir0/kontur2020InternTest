@@ -3,7 +3,7 @@ let tradePorts = [];
 let homePort = {};
 let ship;
 let map = [];
-let distanceToPort = {};
+let distanceToPorts = {};
 let productDesc = {};
 
 
@@ -128,8 +128,6 @@ class Maths {
     }
 
     static productProfit(priceInPort, product, len) {
-        console.log(product)
-        console.log(priceInPort)
         return priceInPort[product.name] * product.amount / len;
     }
 
@@ -145,7 +143,7 @@ class Maths {
 
 class Map {
     symbolMap;
-    lastPiratesLocation; // идея в том, что мы накладываем поверх нашей карты карту пиратов
+    lastPiratesLocatation ;
     directions = [
         {x: -1, y:  0},
         {x:  1, y:  0},
@@ -155,14 +153,21 @@ class Map {
 
 
     refreshPirates(pirates) {
-        this.lastPiratesLocation = createMatrix(this.Height, this.Width)
+        this.lastPiratesLocatation = createMatrix(this.Height, this.Width)
+        const directions = [
+            {x: -1, y:  0},
+            {x:  1, y:  0},
+            {x:  0, y: -1},
+            {x:  0, y:  1},
+        ];
         for(const pirate of pirates) {
             for (const direction of this.directions) {
                 const x = pirate.x + direction.x;
                 const y = pirate.y+direction.y;
-                this.lastPiratesLocation[y][x] = true;
+                this.lastPiratesLocatation[y][x] = true;
             }
         }
+        //console.log(this.rememberMapObjects)
     }
 
     constructor(levelMap) {
@@ -174,8 +179,9 @@ class Map {
         const width = matrix.length;
         const height = matrix[0].length
         let matrixAdjasment = createMatrix(width, height);
-        this.lastPiratesLocation = createMatrix(width, height)
+        this.lastPiratesLocatation = createMatrix(width, height)
 
+        //console.log(matrixAdjasment)
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
                 const currentCell = matrix[x][y];
@@ -193,7 +199,8 @@ class Map {
                             childrens.push(innerMapObject)
                         }
                     }
-                    matrixAdjasment[x][y] = createMapObject(currentCell, x, y, childrens);
+                    const mapObject = createMapObject(currentCell, x, y, childrens)
+                    matrixAdjasment[x][y] = mapObject;
                 }
             }
         }
@@ -210,13 +217,12 @@ class Map {
     }
 
     Get(y, x) {
-        if (this.lastPiratesLocation[y][x]) {
-            return 0;
-        }
+        if (this.lastPiratesLocatation[y][x]) return 0;
         return this.symbolMap[y][x];
     }
 
     Set(y,x,value) {
+        //console.log(this.symbolMap[y][x])
         this.symbolMap[y][x] = value;
     }
 
@@ -246,7 +252,7 @@ function createMatrix(rows, columns) {
     for (let i = 0; i < rows; i++) {
         arr[i] = [];
         for (let j = 0; j < columns; j++) {
-            arr[i][j] = 0;
+            arr[i][j] = 0;//вместо i+j+1 пишем любой наполнитель. В простейшем случае - null
         }
     }
     return arr;
@@ -273,12 +279,10 @@ function createMapObject(symbol, x, y, neighbours = []) {
 }
 
 
-
-
 export function startGame(levelMap, gameState) {
     tradePorts = [];
     homePort = {};
-    distanceToPort = {};
+    distanceToPorts = {};
     productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
@@ -371,17 +375,23 @@ class PriorityQueue {
     }
 
     enqueue(element, priority) {
+        // creating object from queue element
         const qElement = new QElement(element, priority);
         this.items.push(qElement);
         this.items.sort((a, b) => b.priority - a.priority);
     }
 
     dequeue() {
+        // return the dequeued element and remove it.
+        // if the queue is empty returns Underflow
+        if (this.isEmpty())
+            return null;
         return this.items.pop();
     }
 
 
     isEmpty() {
+        // return true if the queue is empty.
         return this.items.length === 0;
     }
 
@@ -389,15 +399,15 @@ class PriorityQueue {
 
 
 function generateProducts(goodsInPort, freeSpaceShip) {
-    let products = []
-    for (const [i, port] of tradePorts.entries()) {
+    const products = tradePorts.map((port, index) => {
         if (!port.prices) return null;
+        const price = port.prices;
         let optimalProduct = null;
         let max = 0;
         for (const product of goodsInPort) {
-            if (port.prices.hasOwnProperty(product.name)) {
+            if (price.hasOwnProperty(product.name)) {
                 const amountInShip = Maths.amountInShip(freeSpaceShip, product);
-                const profit = port.prices[product.name] * amountInShip;
+                const profit = price[product.name] * amountInShip;
                 if (max < profit) {
                     optimalProduct = {
                         name: product.name,
@@ -407,51 +417,48 @@ function generateProducts(goodsInPort, freeSpaceShip) {
                 }
             }
         }
-        products.push({
+        return {
             product: optimalProduct,
-            port: port,
-            index: i
-        })
-
-    }
-
+            priceInPort: price,
+            port,
+            index
+        }
+    });
     return products;
 }
 
 
 function getProductForLoad(goodsInPort) {
     const freeSpaceShip = ship.getFreeSpaceInShip();
+
     const products = generateProducts(goodsInPort, freeSpaceShip);
 
     for (const product of products) {
-        if (product && product.product && !distanceToPort.hasOwnProperty(product.port.portId)) {
+        if (product && product.product && !distanceToPorts.hasOwnProperty(product.port.portId)) {
             const way = maneuvereToPort(product.port, homePort);
-            let distanceToPort1 = Infinity;
-            if (way !== null) distanceToPort1 = way.length;
-            distanceToPort[product.port.id] = distanceToPort1;
+            let distanceToPort = Infinity;
+            if (way !== null) distanceToPort = way.length;
+            distanceToPorts[product.port.id] = distanceToPort;
         }
     }
-    console.log(products)
+
     const maxCostForProduct = maxElement(products, profitToPort);
     const product = maxCostForProduct && maxCostForProduct.product;
     ship.load(product.name, product.amount)
-
 }
 
 
 function profitToPort(obj) {
-    console.log(obj)
-    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPort[obj.port.id]);
+    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPorts[obj.port.id]);
 }
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
-    const value = array.reduce((obj1, obj2) => {
+    return array.reduce((obj1, obj2) => {
         if (comparator(obj1) > comparator(obj2)) {
             return obj1;
         }
         return obj2;
     }, reduceDefaultValue);
-    return value;
 }
 
 
@@ -463,38 +470,27 @@ function getProductForSale() {
 
 
 function profitOnSale(port) {
-    if (port instanceof HomePort || !port.prices) {
-        return 0;
-    }
+    if (port instanceof HomePort || !port.prices) return 0;
 
     const profit = ship.items.map(function(val, i, arr) {
         return (port.prices[val.name] * val.amount) / Maths.distance(ship, port)
     })
 
-    return sum(profit)
+    return profit.reduce((a, b) => a + b, 0);
 }
 
-function sum(array) {
-    return array.reduce((sum, elem) => sum + elem, 0);
-
-}
 
 function findOptimalPort() {
-    let localPorts = []
-    for (const port of tradePorts) {
-        localPorts.push(port)
-    }
+    const localPorts = tradePorts;
     localPorts.push(homePort)
-
     //return maxElement(portes, profitOnSale, homePort)
-    const port = localPorts.reduce((max_port, port) => {
+    return localPorts.reduce((max_port, port) => {
         if (profitOnSale(max_port) < profitOnSale(port)) {
             return port;
         } else {
             return max_port;
         }
     }, homePort);
-    return port
 }
 
 
@@ -522,5 +518,4 @@ function goto() {
         ship.moveToEast()
     }
 }
-
 
