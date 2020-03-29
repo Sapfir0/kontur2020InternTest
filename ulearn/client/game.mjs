@@ -144,13 +144,8 @@ class Map {
 
 
     refreshPirates(pirates) {
-        this.lastPiratesLocatation = createMatrix(this.Height, this.Width)
-        const directions = [
-            {x: -1, y:  0},
-            {x:  1, y:  0},
-            {x:  0, y: -1},
-            {x:  0, y:  1},
-        ];
+        this.lastPiratesLocatation = createMatrix(this.Height, this.Width);
+
         for(const pirate of pirates) {
             for (const direction of this.directions) {
                 const x = pirate.x + direction.x;
@@ -450,18 +445,17 @@ function profitToPort(obj) {
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
     const value = array.reduce((obj1, obj2) => {
-        if (comparator(obj1) > comparator(obj2)) {
-            return obj1;
+        if (comparator(obj1) < comparator(obj2)) {
+            return obj2;
         }
-        return obj2;
+        return obj1;
     }, reduceDefaultValue);
     return value;
 }
 
 
 function getProductForSale() {
-    const priceWithAmount = (product) => product && [product.name] * product.amount;
-    return maxElement(ship.items, priceWithAmount);
+    return ship.items[0] || null;
 }
 
 
@@ -478,22 +472,16 @@ function profitOnSale(port) {
 
 function findOptimalPort() {
     const localPorts = tradePorts;
-    localPorts.push(homePort)
-    //return maxElement(portes, profitOnSale, homePort)
-    return localPorts.reduce((max_port, port) => {
-        if (profitOnSale(max_port) < profitOnSale(port)) {
-            return port;
-        } else {
-            return max_port;
-        }
-    }, homePort);
+    localPorts.push(homePort);
+    return maxElement(localPorts, profitOnSale, homePort);
 }
 
 
 function goto() {
     const optimalPort = findOptimalPort();
     if (optimalPort === undefined) {
-        ship.wait()
+        ship.wait();
+        return
     }
     const way = maneuvereToPort(ship, optimalPort);
     let destination = way[0];
