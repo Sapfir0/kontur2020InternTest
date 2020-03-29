@@ -161,7 +161,6 @@ class Map {
                 this.lastPiratesLocatation[y][x] = true;
             }
         }
-        //console.log(this.rememberMapObjects)
     }
 
     constructor(levelMap) {
@@ -175,7 +174,6 @@ class Map {
         let matrixAdjasment = createMatrix(width, height);
         this.lastPiratesLocatation = createMatrix(width, height)
 
-        //console.log(matrixAdjasment)
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
                 const currentCell = matrix[x][y];
@@ -211,12 +209,13 @@ class Map {
     }
 
     Get(y, x) {
-        if (this.lastPiratesLocatation[y][x]) return 0;
+        if (this.lastPiratesLocatation[y][x]) {
+            return 0;
+        }
         return this.symbolMap[y][x];
     }
 
     Set(y,x,value) {
-        //console.log(this.symbolMap[y][x])
         this.symbolMap[y][x] = value;
     }
 
@@ -246,7 +245,7 @@ function createMatrix(rows, columns) {
     for (let i = 0; i < rows; i++) {
         arr[i] = [];
         for (let j = 0; j < columns; j++) {
-            arr[i][j] = 0;//вместо i+j+1 пишем любой наполнитель. В простейшем случае - null
+            arr[i][j] = 0;
         }
     }
     return arr;
@@ -370,7 +369,6 @@ class PriorityQueue {
     }
 
     enqueue(element, priority) {
-        // creating object from queue element
         const qElement = new QElement(element, priority);
         this.items.push(qElement);
         this.items.sort((a, b) => b.priority - a.priority);
@@ -389,7 +387,8 @@ class PriorityQueue {
 
 
 function generateProducts(goodsInPort, freeSpaceShip) {
-    const products = tradePorts.map((port, index) => {
+    let products = []
+    for (const [i, port] of tradePorts.entries()) {
         if (!port.prices) return null;
         const price = port.prices;
         let optimalProduct = null;
@@ -407,20 +406,20 @@ function generateProducts(goodsInPort, freeSpaceShip) {
                 }
             }
         }
-        return {
+        products.push({
             product: optimalProduct,
-            priceInPort: price,
-            port,
-            index
-        }
-    });
+            port: port,
+            index: i
+        })
+
+    }
+
     return products;
 }
 
 
 function getProductForLoad(goodsInPort) {
     const freeSpaceShip = ship.getFreeSpaceInShip();
-
     const products = generateProducts(goodsInPort, freeSpaceShip);
 
     for (const product of products) {
@@ -436,7 +435,7 @@ function getProductForLoad(goodsInPort) {
 
 
 function profitToPort(obj) {
-    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPort[obj.port.portId]);
+    return obj && obj.product && Maths.productProfit(obj.port.prices, obj.product, distanceToPort[obj.port.portId]);
 }
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
@@ -458,27 +457,38 @@ function getProductForSale() {
 
 
 function profitOnSale(port) {
-    if (port instanceof HomePort || !port.prices) return 0;
+    if (port instanceof HomePort || !port.prices) {
+        return 0;
+    }
 
     const profit = ship.items.map(function(val, i, arr) {
         return (port.prices[val.name] * val.amount) / Maths.distance(ship, port)
     })
 
-    return profit.reduce((a, b) => a + b, 0);
+    return sum(profit)
 }
 
+function sum(array) {
+    return array.reduce((sum, elem) => sum + elem, 0);
+
+}
 
 function findOptimalPort() {
-    const localPorts = tradePorts;
+    let localPorts = []
+    for (const port of tradePorts) {
+        localPorts.push(port)
+    }
     localPorts.push(homePort)
+
     //return maxElement(portes, profitOnSale, homePort)
-    return localPorts.reduce((max_port, port) => {
+    const port = localPorts.reduce((max_port, port) => {
         if (profitOnSale(max_port) < profitOnSale(port)) {
             return port;
         } else {
             return max_port;
         }
     }, homePort);
+    return port
 }
 
 
