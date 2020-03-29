@@ -3,7 +3,7 @@ let tradePorts = [];
 let homePort = {};
 let ship;
 let map = [];
-let distanceToPort = {};
+let distanceToPorts = {};
 let productDesc = {};
 
 
@@ -275,7 +275,7 @@ function createMapObject(symbol, x, y, neighbours = []) {
 export function startGame(levelMap, gameState) {
     tradePorts = [];
     homePort = {};
-    distanceToPort = {};
+    distanceToPorts = {};
     productDesc = {};
     ship = new Ship(gameState.ship);
     homePort = {}
@@ -344,7 +344,7 @@ function maneuvereToPort(objSource, objDestination) {
                 x: node.element.x + direction.x,
                 y: node.element.y + direction.y
             };
-            if (!visited[new_node.y][new_node.x] && isReachable(new_node)) {
+            if (isReachable(new_node) && !visited[new_node.y][new_node.x] ) {
                 const {x, y} = new_node;
                 new_node.way = [...node.element.way, {x, y}];
                 queue.enqueue(new_node, new_node.way.length + Maths.manhattanDistance(new_node, objDestination));
@@ -431,28 +431,31 @@ function getProductForLoad(goodsInPort) {
     const products = generateProducts(goodsInPort, freeSpaceShip);
 
     for (const product of products) {
-        if (product && product.product && !distanceToPort.hasOwnProperty(product.port.portId)) {
-            distanceToPort[product.port.portId] = Maths.distance(product.port, homePort);
+        if (product && product.product && !distanceToPorts.hasOwnProperty(product.port.portId)) {
+            const way = maneuvereToPort(product.port, homePort);
+            let distanceToPort = Infinity;
+            if (way !== null) distanceToPort = way.length;
+            distanceToPorts[product.port.id] = distanceToPort;
         }
     }
 
-    const maxCostForProduct = maxElement(products, profitToPort)
+    const maxCostForProduct = maxElement(products, profitToPort);
     return maxCostForProduct && maxCostForProduct.product;
 }
 
 
 function profitToPort(obj) {
-    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPort[obj.port.portId]);
+    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPorts[obj.port.id]);
 }
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
-    const product = array.reduce((obj1, obj2) => {
+    const value = array.reduce((obj1, obj2) => {
         if (comparator(obj1) > comparator(obj2)) {
             return obj1;
         }
         return obj2;
     }, reduceDefaultValue);
-    return product;
+    return value;
 }
 
 
