@@ -143,7 +143,7 @@ class Maths {
 
 class Map {
     symbolMap;
-    lastPiratesLocatation ;
+    lastPiratesLocation; // идея в том, что мы накладываем поверх нашей карты карту пиратов
     directions = [
         {x: -1, y:  0},
         {x:  1, y:  0},
@@ -153,12 +153,12 @@ class Map {
 
 
     refreshPirates(pirates) {
-        this.lastPiratesLocatation = createMatrix(this.Height, this.Width)
+        this.lastPiratesLocation = createMatrix(this.Height, this.Width)
         for(const pirate of pirates) {
             for (const direction of this.directions) {
                 const x = pirate.x + direction.x;
                 const y = pirate.y+direction.y;
-                this.lastPiratesLocatation[y][x] = true;
+                this.lastPiratesLocation[y][x] = true;
             }
         }
     }
@@ -172,7 +172,7 @@ class Map {
         const width = matrix.length;
         const height = matrix[0].length
         let matrixAdjasment = createMatrix(width, height);
-        this.lastPiratesLocatation = createMatrix(width, height)
+        this.lastPiratesLocation = createMatrix(width, height)
 
         for (let x = 1; x < matrix.length - 1; x++) {
             for (let y = 1; y < matrix[x].length - 1; y++) {
@@ -191,8 +191,7 @@ class Map {
                             childrens.push(innerMapObject)
                         }
                     }
-                    const mapObject = createMapObject(currentCell, x, y, childrens)
-                    matrixAdjasment[x][y] = mapObject;
+                    matrixAdjasment[x][y] = createMapObject(currentCell, x, y, childrens);
                 }
             }
         }
@@ -209,7 +208,7 @@ class Map {
     }
 
     Get(y, x) {
-        if (this.lastPiratesLocatation[y][x]) {
+        if (this.lastPiratesLocation[y][x]) {
             return 0;
         }
         return this.symbolMap[y][x];
@@ -322,34 +321,35 @@ function isReachable(cell) {
         map.Get(cell.y, cell.x) != 0;
 }
 
-function maneuvereToPort(objSource, objDestination) {
+function maneuvereToPort(source, destination) {
+    let elementsInQueue = 0;
+    const maxElementsInQueue = 300;
     const queue = new PriorityQueue();
-    queue.enqueue({...objSource, way: []}, 0);
+
+    queue.enqueue({...source, way: []}, 0);
     const visited = createMatrix(map.Height, map.Width);
-    let counter = 0;
+
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
 
-        if (node.element.x === objDestination.x && node.element.y === objDestination.y ) {
+        if (node.element.x === destination.x && node.element.y === destination.y ) {
             return node.element.way;
         }
 
-        counter++;
+        elementsInQueue++;
         visited[node.element.y][node.element.x] = true;
 
         for (const direction of map.directions) {
-            const new_node = {
-                x: node.element.x + direction.x,
-                y: node.element.y + direction.y
-            };
-            if (!visited[new_node.y][new_node.x] && isReachable(new_node)) {
-                const {x, y} = new_node;
-                new_node.way = [...node.element.way, {x, y}];
-                queue.enqueue(new_node, new_node.way.length + Maths.manhattanDistance(new_node, objDestination));
+            const {x, y} = {x:node.element.x + direction.x, y: node.element.y + direction.y}
+            if (!visited[y][x] && isReachable({x,y})) {
+                const generatedWay = [...node.element.way, {x, y}];
+                const priority = generatedWay.length + + Maths.manhattanDistance({x, y} , destination)
+                const newNode = {x,y, way: generatedWay}
+                queue.enqueue(newNode, priority);
             }
         }
 
-        if (counter > 300) {
+        if (elementsInQueue > maxElementsInQueue) {
             break;
         }
     }
@@ -390,13 +390,12 @@ function generateProducts(goodsInPort, freeSpaceShip) {
     let products = []
     for (const [i, port] of tradePorts.entries()) {
         if (!port.prices) return null;
-        const price = port.prices;
         let optimalProduct = null;
         let max = 0;
         for (const product of goodsInPort) {
-            if (price.hasOwnProperty(product.name)) {
+            if (port.prices.hasOwnProperty(product.name)) {
                 const amountInShip = Maths.amountInShip(freeSpaceShip, product);
-                const profit = price[product.name] * amountInShip;
+                const profit = port.prices[product.name] * amountInShip;
                 if (max < profit) {
                     optimalProduct = {
                         name: product.name,
