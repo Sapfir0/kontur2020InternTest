@@ -79,12 +79,21 @@ class Ship {
         this.command =  'WAIT'
     }
 
+    load(product, amount) {
+        this.command = `LOAD ${product} ${amount}`
+
+    }
+
+    sell(product, amount) {
+        this.command = `SELL ${product} ${amount}`
+    }
+
     needSale() {
         return ship.isInTradePort() && ship.weAreIn(findOptimalPort())
     }
 
     getFreeSpaceInShip() {
-        return this.items.reduce((acc, cur) => acc - productDesc[cur.name] * cur.amount, this.SHIP_HOLD_SIZE);
+        return this.items.reduce((allFreeSpace, cur) => allFreeSpace - productDesc[cur.name] * cur.amount, this.SHIP_HOLD_SIZE);
     }
 }
 
@@ -145,12 +154,6 @@ class Map {
 
     refreshPirates(pirates) {
         this.lastPiratesLocatation = createMatrix(this.Height, this.Width)
-        const directions = [
-            {x: -1, y:  0},
-            {x:  1, y:  0},
-            {x:  0, y: -1},
-            {x:  0, y:  1},
-        ];
         for(const pirate of pirates) {
             for (const direction of this.directions) {
                 const x = pirate.x + direction.x;
@@ -304,15 +307,10 @@ export function getNextCommand(gameState) {
     ship.refreshShipState(gameState.ship);
     map.refreshPirates(gameState.pirates);
 
-    if (ship.canLoadProduct()) {
-        const product = getProductForLoad(gameState.goodsInPort);
-        ship.command = `LOAD ${product.name} ${product.amount}`
-    } else if (ship.needSale()) {
-        const product = getProductForSale();
-        ship.command = `SELL ${product.name} ${product.amount}`
-    } else {
-        goto();
-    }
+    if (ship.canLoadProduct()) getProductForLoad(gameState.goodsInPort);
+    else if (ship.needSale()) getProductForSale();
+    else goto();
+
     return ship.command;
 }
 
@@ -329,14 +327,15 @@ function maneuvereToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
     const visited = createMatrix(map.Height, map.Width);
-    // let counter = 0;
+    let counter = 0;
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
 
         if (node.element.x === objDestination.x && node.element.y === objDestination.y ) {
             return node.element.way;
         }
-        // counter++;
+
+        counter++;
         visited[node.element.y][node.element.x] = true;
 
         for (const direction of map.directions) {
@@ -351,10 +350,9 @@ function maneuvereToPort(objSource, objDestination) {
             }
         }
 
-        // if (counter > 300) {
-        //     console.log('puk')
-        //     break;
-        // }
+        if (counter > 300) {
+            break;
+        }
     }
     return null;
 }
@@ -379,16 +377,11 @@ class PriorityQueue {
     }
 
     dequeue() {
-        // return the dequeued element and remove it.
-        // if the queue is empty returns Underflow
-        if (this.isEmpty())
-            return null;
         return this.items.pop();
     }
 
 
     isEmpty() {
-        // return true if the queue is empty.
         return this.items.length === 0;
     }
 
@@ -437,7 +430,8 @@ function getProductForLoad(goodsInPort) {
     }
 
     const maxCostForProduct = maxElement(products, profitToPort)
-    return maxCostForProduct && maxCostForProduct.product;
+    const product = maxCostForProduct && maxCostForProduct.product;
+    ship.load(product.name, product.amount)
 }
 
 
@@ -458,7 +452,8 @@ function maxElement(array, comparator, reduceDefaultValue=null) {
 
 function getProductForSale() {
     const priceWithAmount = (product) => product && [product.name] * product.amount;
-    return maxElement(ship.items, priceWithAmount);
+    const product =  maxElement(ship.items, priceWithAmount);
+    ship.sell(product.name, product.amount)
 }
 
 
