@@ -128,6 +128,8 @@ class Maths {
     }
 
     static productProfit(priceInPort, product, len) {
+        console.log(product)
+        console.log(priceInPort)
         return priceInPort[product.name] * product.amount / len;
     }
 
@@ -341,7 +343,7 @@ function maneuvereToPort(source, destination) {
 
         for (const direction of map.directions) {
             const {x, y} = {x:node.element.x + direction.x, y: node.element.y + direction.y}
-            if (!visited[y][x] && isReachable({x,y})) {
+            if (isReachable({x,y}) && !visited[y][x] ) {
                 const generatedWay = [...node.element.way, {x, y}];
                 const priority = generatedWay.length + + Maths.manhattanDistance({x, y} , destination)
                 const newNode = {x,y, way: generatedWay}
@@ -423,28 +425,33 @@ function getProductForLoad(goodsInPort) {
 
     for (const product of products) {
         if (product && product.product && !distanceToPort.hasOwnProperty(product.port.portId)) {
-            distanceToPort[product.port.portId] = Maths.distance(product.port, homePort);
+            const way = maneuvereToPort(product.port, homePort);
+            let distanceToPort1 = Infinity;
+            if (way !== null) distanceToPort1 = way.length;
+            distanceToPort[product.port.id] = distanceToPort1;
         }
     }
-
-    const maxCostForProduct = maxElement(products, profitToPort)
+    console.log(products)
+    const maxCostForProduct = maxElement(products, profitToPort);
     const product = maxCostForProduct && maxCostForProduct.product;
     ship.load(product.name, product.amount)
+
 }
 
 
 function profitToPort(obj) {
-    return obj && obj.product && Maths.productProfit(obj.port.prices, obj.product, distanceToPort[obj.port.portId]);
+    console.log(obj)
+    return obj && obj.product && Maths.productProfit(obj.priceInPort, obj.product, distanceToPort[obj.port.id]);
 }
 
 function maxElement(array, comparator, reduceDefaultValue=null) {
-    const product = array.reduce((obj1, obj2) => {
+    const value = array.reduce((obj1, obj2) => {
         if (comparator(obj1) > comparator(obj2)) {
             return obj1;
         }
         return obj2;
     }, reduceDefaultValue);
-    return product;
+    return value;
 }
 
 
