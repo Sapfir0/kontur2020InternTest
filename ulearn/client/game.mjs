@@ -329,14 +329,14 @@ function maneuvereToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
     const visited = createMatrix(map.Height, map.Width);
-    let counter = 0;
+    // let counter = 0;
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
 
         if (node.element.x === objDestination.x && node.element.y === objDestination.y ) {
             return node.element.way;
         }
-        counter++;
+        // counter++;
         visited[node.element.y][node.element.x] = true;
 
         for (const direction of map.directions) {
@@ -351,12 +351,12 @@ function maneuvereToPort(objSource, objDestination) {
             }
         }
 
-        if (counter > 300) {
-            console.log('puk')
-            break;
-        }
+        // if (counter > 300) {
+        //     console.log('puk')
+        //     break;
+        // }
     }
-    return [];
+    return null;
 }
 
 class QElement {
