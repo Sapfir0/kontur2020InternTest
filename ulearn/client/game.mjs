@@ -115,7 +115,7 @@ class TradingPort extends Port {
 
 class Maths {
     static distance(obj1, obj2) {
-        return Math.abs(obj1.x - obj2.x) + Math.abs(obj1.y - obj2.y);
+        return this.manhattanDistance(obj1, obj2);
     }
 
     static productProfit(priceInPort, product, len) {
@@ -208,7 +208,7 @@ class Map {
     }
 
     Get(y, x) {
-        if (this.lastPiratesLocatation[y][x]) return 0
+        if (this.lastPiratesLocatation[y][x]) return 0;
         return this.symbolMap[y][x];
     }
 
@@ -322,14 +322,13 @@ function isReachable(cell) {
         cell.x < map.Width &&
         cell.y >= 0 &&
         cell.y < map.Height &&
-        map.Get(cell.y, cell.x) !== 0;
+        map.Get(cell.y, cell.x) != 0;
 }
 
 function maneuvereToPort(objSource, objDestination) {
     const queue = new PriorityQueue();
     queue.enqueue({...objSource, way: []}, 0);
     const visited = createMatrix(map.Height, map.Width);
-
     let counter = 0;
     while (!queue.isEmpty()) {
         const node = queue.dequeue();
@@ -337,7 +336,7 @@ function maneuvereToPort(objSource, objDestination) {
         if (node.element.x === objDestination.x && node.element.y === objDestination.y ) {
             return node.element.way;
         }
-
+        counter++;
         visited[node.element.y][node.element.x] = true;
 
         for (const direction of map.directions) {
@@ -352,8 +351,8 @@ function maneuvereToPort(objSource, objDestination) {
             }
         }
 
-        counter++;
-        if (counter > 300) { // хых
+        if (counter > 300) {
+            console.log('puk')
             break;
         }
     }
@@ -375,29 +374,16 @@ class PriorityQueue {
     enqueue(element, priority) {
         // creating object from queue element
         const qElement = new QElement(element, priority);
-        let contain = false;
-        // iterating through the entire item array to add element at the correct location of the Queue
-        for (let i = 0; i < this.items.length; i++) {
-            if (this.items[i].priority > qElement.priority) {
-                // Once the correct location is found it is enqueued
-                this.items.splice(i, 0, qElement);
-                contain = true;
-                break;
-            }
-        }
-        // if the element have the highest priority
-        // it is added at the end of the queue
-        if (!contain) {
-            this.items.push(qElement);
-        }
+        this.items.push(qElement);
+        this.items.sort((a, b) => b.priority - a.priority);
     }
 
     dequeue() {
         // return the dequeued element and remove it.
         // if the queue is empty returns Underflow
-        // if (this.isEmpty())
-        //     return false
-        return this.items.shift();
+        if (this.isEmpty())
+            return null;
+        return this.items.pop();
     }
 
 
