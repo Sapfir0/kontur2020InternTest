@@ -1,4 +1,3 @@
-
 let tradePorts = [];
 let homePort = {};
 let ship;
@@ -307,7 +306,6 @@ export function startGame(levelMap, gameState) {
 }
 
 
-
 export function getNextCommand(gameState) {
     ship.refreshShipState(gameState.ship);
     map.refreshPirates(gameState.pirates);
@@ -328,149 +326,64 @@ function isReachable(cell) {
         map.Get(cell.y, cell.x) != 0;
 }
 
-const top = 0;
-const parent = i => ((i + 1) >>> 1) - 1;
-const left = i => (i << 1) + 1;
-const right = i => (i + 1) << 1;
-
-class PriorityQueue {
-    constructor(comparator = (a, b) => a > b) {
-        this._heap = [];
-        this._comparator = comparator;
-    }
-    size() {
-        return this._heap.length;
-    }
-    isEmpty() {
-        return this.size() == 0;
-    }
-    peek() {
-        return this._heap[top];
-    }
-    push(...values) {
-        values.forEach(value => {
-            this._heap.push(value);
-            this._siftUp();
-        });
-        return this.size();
-    }
-    pop() {
-        const poppedValue = this.peek();
-        const bottom = this.size() - 1;
-        if (bottom > top) {
-            this._swap(top, bottom);
-        }
-        this._heap.pop();
-        this._siftDown();
-        return poppedValue;
-    }
-    replace(value) {
-        const replacedValue = this.peek();
-        this._heap[top] = value;
-        this._siftDown();
-        return replacedValue;
-    }
-    _greater(i, j) {
-        return this._comparator(this._heap[i], this._heap[j]);
-    }
-    _swap(i, j) {
-        [this._heap[i], this._heap[j]] = [this._heap[j], this._heap[i]];
-    }
-    _siftUp() {
-        let node = this.size() - 1;
-        while (node > top && this._greater(node, parent(node))) {
-            this._swap(node, parent(node));
-            node = parent(node);
-        }
-    }
-    _siftDown() {
-        let node = top;
-        while (
-            (left(node) < this.size() && this._greater(left(node), node)) ||
-            (right(node) < this.size() && this._greater(right(node), node))
-            ) {
-            let maxChild = (right(node) < this.size() && this._greater(right(node), left(node))) ? right(node) : left(node);
-            this._swap(node, maxChild);
-            node = maxChild;
-        }
-    }
-}
-
 function maneuvereToPort(source, destination) {
     let elementsInQueue = 0;
-    const maxElementsInQueue = 300;
+    const maxElementsInQueue = 10000;
     const queue = new PriorityQueue();
 
-    queue.push({...source, way: []}, 0);
-
+    queue.enqueue({...source, way: []}, 0);
     const visited = createMatrix(map.Height, map.Width);
+
     while (!queue.isEmpty()) {
+        const node = queue.dequeue();
 
-        const node = queue.pop();
-        console.log("берем ноду из стека", node)
-
-        if (node.x === destination.x && node.y === destination.y ) {
-            console.log("возращаю путь")
-            //console.log(node.way)
-            return node.way;
+        if (node.element.x === destination.x && node.element.y === destination.y ) {
+            return node.element.way;
         }
+
         elementsInQueue++;
-        visited[node.y][node.x] = true;
+        visited[node.element.y][node.element.x] = true;
 
         for (const direction of map.directions) {
-            const {x, y} = {x:node.x + direction.x, y: node.y + direction.y}
+            const {x, y} = {x:node.element.x + direction.x, y: node.element.y + direction.y}
             if (isReachable({x,y}) && !visited[y][x] ) {
-                const generatedWay = [...node.way, {x, y}];
+                const generatedWay = [...node.element.way, {x, y}];
                 const priority = generatedWay.length + + Maths.manhattanDistance({x, y} , destination)
                 const newNode = {x,y, way: generatedWay}
-                console.log("пишем ноду", newNode)
-
-                queue.push(newNode, priority);
+                queue.enqueue(newNode, priority);
             }
         }
 
-        // if (elementsInQueue > maxElementsInQueue) {
-        //     break;
-        // }
+        if (elementsInQueue > maxElementsInQueue) {
+            break;
+        }
     }
-    console.log("возращаю нул лоху")
     return null;
 }
 
-class QElement {
-    constructor(element, priority) {
-        this.element = element;
-        this.priority = priority;
-    }
-}
 
-// class PriorityQueue {
-//     constructor() {
-//         this.items = [];
-//     }
-//
-//     enqueue(element, priority) {
-//         // creating object from queue element
-//         const qElement = new QElement(element, priority);
-//         this.items.push(qElement);
-//         this.items.sort((a, b) => b.priority - a.priority);
-//     }
-//
-//     dequeue() {
-//         // return the dequeued element and remove it.
-//         // if the queue is empty returns Underflow
-//         if (this.isEmpty())
-//             return null;
-//         return this.items.pop();
-//     }
-//
-//
-//     isEmpty() {
-//         // return true if the queue is empty.
-//         return this.items.length === 0;
-//     }
-//
-// }
+
+class PriorityQueue {
+    constructor() {
+        this.items = [];
+    }
+
+    enqueue(element, priority) {
+        const qElement = {element, priority};
+        this.items.push(qElement);
+        this.items.sort((a, b) => b.priority - a.priority);
+    }
+
+    dequeue() {
+        return this.items.pop();
+    }
+
+
+    isEmpty() {
+        return this.items.length === 0;
+    }
+
+}
 
 
 function generateProducts(goodsInPort, freeSpaceShip) {
@@ -504,9 +417,7 @@ function generateProducts(goodsInPort, freeSpaceShip) {
 
 
 function getProductForLoad(goodsInPort) {
-    const freeSpaceShip = ship.getFreeSpaceInShip();
-
-    const products = generateProducts(goodsInPort, freeSpaceShip);
+    const products = generateProducts(goodsInPort, ship.getFreeSpaceInShip());
 
     for (const product of products) {
         if (product && product.product && !distanceToPorts.hasOwnProperty(product.port.portId)) {
@@ -575,15 +486,10 @@ function goto() {
         ship.wait()
     }
     const way = maneuvereToPort(ship, optimalPort);
-    //console.log(way)
-    let destination;
-
-    if (way != null) {
-        destination = way[0];
+    let destination = way[0];
+    if (destination === undefined) {
+        destination = optimalPort
     }
-    // if (destination === undefined) {
-    //     destination = optimalPort
-    // }
 
     if (ship.y > destination.y) {
         ship.moveToNorth()
@@ -598,4 +504,3 @@ function goto() {
         ship.moveToEast()
     }
 }
-
